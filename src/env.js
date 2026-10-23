@@ -14,7 +14,7 @@ if (existsSync(envPath)) {
 }
 
 const num = (k, d) => (process.env[k] === undefined || process.env[k] === '' ? d : Number(process.env[k]));
-const str = (k, d = '') => process.env[k] || d;
+const str = (k, d = '') => (process.env[k] || '').trim() || d;
 
 export const cfg = {
   dryRun: str('DRY_RUN', '1') !== '0',
@@ -23,7 +23,7 @@ export const cfg = {
     accessKey: str('RAKUTEN_ACCESS_KEY'),
     affiliateId: str('RAKUTEN_AFFILIATE_ID'),
     allowedSite: str('RAKUTEN_ALLOWED_SITE', 'https://example.com'),
-    searchUrl: str('RAKUTEN_SEARCH_URL', 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601'),
+    searchUrl: str('RAKUTEN_SEARCH_URL', 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701'),
   },
   threads: { userId: str('THREADS_USER_ID'), token: str('THREADS_ACCESS_TOKEN') },
   claude: { apiKey: str('ANTHROPIC_API_KEY'), model: str('CLAUDE_MODEL', 'claude-haiku-4-5') },
