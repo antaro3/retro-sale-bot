@@ -1,5 +1,5 @@
 import { db, now } from './db.js';
-import { cfg } from './env.js';
+import { cfg, log } from './env.js';
 
 const days = (n) => new Date(Date.now() - n * 864e5).toISOString();
 
@@ -15,6 +15,8 @@ export function ingest(keyword, items, { bootstrap, ngWords = [] }) {
     last_price=excluded.last_price, last_available=excluded.last_available`);
   const addPrice = db.prepare('INSERT INTO prices(item_code,price,available,at) VALUES(?,?,?,?)');
 
+  const rates = items.map((it) => it.affiliateRate || 0);
+  log(`  報酬率 "${keyword}": 最大${Math.max(0, ...rates)}% / ${cfg.rules.minAffiliateRate}%以上 ${rates.filter((r) => r >= cfg.rules.minAffiliateRate).length}件`);
   for (const it of items) {
     if (!it.itemCode || !it.price) continue;
     if (ngWords.some((w) => it.name.includes(w))) continue;
@@ -58,6 +60,7 @@ export function rank(candidates) {
   return candidates
     .filter((c) => !seen.has(c.itemCode) && seen.add(c.itemCode))
     .filter((c) => !cooled.get(c.itemCode, days(cfg.rules.cooldownDays)))
+    .filter((c) => (c.affiliateRate || 0) >= cfg.rules.minAffiliateRate) // 持ち越し候補にも報酬率の条件を適用
     // 想定報酬額（価格×報酬率）が大きい商品ほど優先＝稼げるものに特化
     .map((c) => ({ ...c, reward: Math.round(c.price * (c.affiliateRate || 0) / 100), score: c.score * (w[c.keyword] || 1) * Math.max(1, Math.sqrt(c.price * (c.affiliateRate || 0) / 100 / 50)) }))
     .sort((a, b) => b.score - a.score);
