@@ -9,7 +9,7 @@ import { ingest, rank } from './detect.js';
 import { buildPost } from './generate.js';
 import { review, postsToday } from './review.js';
 import { publishText, refreshTokenIfNeeded, fetchInsights } from './threads.js';
-import { blueskyEnabled, publishBluesky, blueskyInsights } from './bluesky.js';
+import { blueskyEnabled, publishBluesky, blueskyInsights, checkBluesky } from './bluesky.js';
 import { buildSite } from './site.js';
 
 export async function runOnce() {
@@ -20,6 +20,7 @@ export async function runOnce() {
   const threadsOn = Boolean(cfg.threads.token);
   const bskyOn = blueskyEnabled();
   log(`配信先: ${[threadsOn && 'Threads', bskyOn && 'Bluesky'].filter(Boolean).join(', ') || 'なし（サイトのみ）'}`);
+  if (bskyOn) await checkBluesky().then((h) => log('Bluesky接続OK', h)).catch((e) => log('Bluesky接続NG', e.message));
 
   // 6'. 過去14日の投稿の反応を取り込み、判定の重みに使う
   if (!cfg.dryRun) {

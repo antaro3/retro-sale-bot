@@ -30,6 +30,12 @@ async function login() {
   return session;
 }
 
+// 接続確認（空運転中も認証だけ試す）
+export async function checkBluesky() {
+  const s = await login();
+  return s.handle;
+}
+
 // 商品画像をリンクカードのサムネイルにする（失敗してもカードなしで投稿）
 async function uploadThumb(imageUrl) {
   if (!imageUrl) return undefined;
