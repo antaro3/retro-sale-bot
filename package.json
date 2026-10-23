@@ -1,0 +1,12 @@
+{
+  "name": "auto-affiliate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "楽天の値下げ・新着・再入荷を検知してThreadsとサイトに自動配信する",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "run": "node --no-warnings src/run.js",
+    "test": "node --no-warnings tests/mock-run.js"
+  }
+}
