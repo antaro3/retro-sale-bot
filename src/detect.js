@@ -26,7 +26,7 @@ export function ingest(keyword, items, { bootstrap, ngWords = [] }) {
 
     if (!bootstrap && it.available && it.price >= cfg.rules.minPrice) {
       if (!prev) {
-        candidates.push({ ...it, keyword, kind: 'new', prevPrice: null, score: 1 });
+        if (cfg.rules.postNew) candidates.push({ ...it, keyword, kind: 'new', prevPrice: null, score: 1 });
       } else if (prev.last_available === 0) {
         candidates.push({ ...it, keyword, kind: 'restock', prevPrice: prev.last_price, score: 2 });
       } else if (prev.last_price && it.price < prev.last_price) {
@@ -61,6 +61,7 @@ export function rank(candidates) {
     .filter((c) => !seen.has(c.itemCode) && seen.add(c.itemCode))
     .filter((c) => !cooled.get(c.itemCode, days(cfg.rules.cooldownDays)))
     .filter((c) => (c.affiliateRate || 0) >= cfg.rules.minAffiliateRate) // 持ち越し候補にも報酬率の条件を適用
+    .filter((c) => c.kind !== 'new' || cfg.rules.postNew)
     // 想定報酬額（価格×報酬率）が大きい商品ほど優先＝稼げるものに特化
     .map((c) => ({ ...c, reward: Math.round(c.price * (c.affiliateRate || 0) / 100), score: c.score * (w[c.keyword] || 1) * Math.max(1, Math.sqrt(c.price * (c.affiliateRate || 0) / 100 / 50)) }))
     .sort((a, b) => b.score - a.score);

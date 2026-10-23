@@ -42,6 +42,7 @@ export const cfg = {
     cooldownDays: num('COOLDOWN_DAYS', 7),
     minPrice: num('MIN_PRICE', 1000),
     minAffiliateRate: num('MIN_AFFILIATE_RATE', 4), // 報酬率(%)がこれ未満の商品は扱わない
+    postNew: num('POST_NEW', 0) === 1, // 新着も投稿するか（検索順の揺れで誤検知しやすいので既定はオフ）
   },
   dbPath: str('DB_PATH', join(ROOT, 'data', 'app.db')),
   publicDir: str('PUBLIC_DIR', join(ROOT, 'public')),
