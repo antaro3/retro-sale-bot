@@ -1,12 +1,81 @@
 {
-  "_説明": "A8.netなどの成果報酬型案件。match のどれかを商品名かキーワードに含む商品ページに自動で表示する。url はA8.netで提携後に発行される広告リンク。active を true にすると表示。",
+  "_説明": "A8.netの提携済み案件。match のどれかを商品名かキーワードに含む商品ページに表示。pixel はA8のインプレッション計測用。",
   "offers": [
     {
-      "active": false,
-      "match": ["プロテイン"],
-      "title": "（例）オンラインフィットネスの無料体験",
-      "text": "自宅で続けたい人向け。初回無料で試せます。",
-      "url": "https://px.a8.net/svt/ejp?a8mat=XXXXXXXX"
+      "active": true,
+      "match": [
+        "プロテイン"
+      ],
+      "title": "Naturecan（ネイチャーカン）",
+      "text": "プロテイン・サプリメントの公式通販サイト。",
+      "url": "https://px.a8.net/svt/ejp?a8mat=4BENDR+AWYE2I+4RJK+5YJRM",
+      "pixel": "https://www19.a8.net/0.gif?a8mat=4BENDR+AWYE2I+4RJK+5YJRM"
+    },
+    {
+      "active": true,
+      "match": [
+        "プロテイン"
+      ],
+      "title": "ULTORA（ウルトラ）プロテイン",
+      "text": "国産プロテインブランドの公式サイト。",
+      "url": "https://px.a8.net/svt/ejp?a8mat=4BENDR+AWCYGQ+4NL2+5YJRM",
+      "pixel": "https://www18.a8.net/0.gif?a8mat=4BENDR+AWCYGQ+4NL2+5YJRM"
+    },
+    {
+      "active": true,
+      "match": [
+        "ドライヤー"
+      ],
+      "title": "CHOUCHOU（シュシュ）",
+      "text": "美容室・サロン専売のヘアアイテム通販サイト。",
+      "url": "https://px.a8.net/svt/ejp?a8mat=4BENDR+AINZJU+4KJC+5YRHE",
+      "pixel": "https://www19.a8.net/0.gif?a8mat=4BENDR+AINZJU+4KJC+5YRHE"
+    },
+    {
+      "active": true,
+      "match": [
+        "ドライヤー",
+        "美容"
+      ],
+      "title": "トリア",
+      "text": "家庭用の美容機器ブランド。",
+      "url": "https://px.a8.net/svt/ejp?a8mat=4BENDR+AYQOVU+54TM+HV7V6",
+      "pixel": "https://www17.a8.net/0.gif?a8mat=4BENDR+AYQOVU+54TM+HV7V6"
+    },
+    {
+      "active": true,
+      "match": [
+        "ロボット掃除機",
+        "空気清浄機",
+        "加湿器",
+        "掃除機"
+      ],
+      "title": "かして！どっとこむ（家電レンタル）",
+      "text": "買う前にレンタルで試すという選択肢も。家電・家具のレンタルサービス。",
+      "url": "https://px.a8.net/svt/ejp?a8mat=4BENDR+B14FAY+OE2+HVFKY",
+      "pixel": "https://www16.a8.net/0.gif?a8mat=4BENDR+B14FAY+OE2+HVFKY"
+    },
+    {
+      "active": true,
+      "match": [
+        "電気毛布",
+        "モバイルバッテリー"
+      ],
+      "title": "Jackery（ジャクリ）のポータブル電源",
+      "text": "アウトドアや停電時の備えに使える大容量バッテリー。",
+      "url": "https://px.a8.net/svt/ejp?a8mat=4BENDR+B2BAII+4NJ4+5YRHE",
+      "pixel": "https://www11.a8.net/0.gif?a8mat=4BENDR+B2BAII+4NJ4+5YRHE"
+    },
+    {
+      "active": true,
+      "match": [
+        "コーヒーメーカー",
+        "コーヒー"
+      ],
+      "title": "every frecious（エブリィフレシャス）",
+      "text": "水道水を使う浄水型ウォーターサーバー。",
+      "url": "https://px.a8.net/svt/ejp?a8mat=4BENDR+B2WQ4A+2B8Y+15OK2A",
+      "pixel": "https://www16.a8.net/0.gif?a8mat=4BENDR+B2WQ4A+2B8Y+15OK2A"
     }
   ]
 }
