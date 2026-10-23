@@ -1,0 +1,12 @@
+{
+  "_説明": "A8.netなどの成果報酬型案件。match のどれかを商品名かキーワードに含む商品ページに自動で表示する。url はA8.netで提携後に発行される広告リンク。active を true にすると表示。",
+  "offers": [
+    {
+      "active": false,
+      "match": ["プロテイン"],
+      "title": "（例）オンラインフィットネスの無料体験",
+      "text": "自宅で続けたい人向け。初回無料で試せます。",
+      "url": "https://px.a8.net/svt/ejp?a8mat=XXXXXXXX"
+    }
+  ]
+}
