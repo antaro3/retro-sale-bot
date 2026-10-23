@@ -20,7 +20,7 @@ async function oneLiner(c) {
         max_tokens: 120,
         messages: [{
           role: 'user',
-          content: `レトロゲーム・アニメ好き向けのThreads投稿に添える一言を書いてください。
+          content: `レトロゲーム・アニメ好き向けのSNS投稿に添える一言を書いてください。
 商品名: ${shortName(c.name, 100)}
 条件:
 - 日本語で40文字以内、1文だけ
@@ -53,5 +53,5 @@ export async function buildPost(c, postId) {
     `※${hhmm()}時点の楽天市場の価格です`,
     '#PR',
   ].filter(Boolean).join('\n');
-  return { text, link, comment };
+  return { text, link, comment, title: shortName(c.name, 90), image: c.image };
 }

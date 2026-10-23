@@ -13,7 +13,7 @@ export function postsToday() {
 // 自動審査。問題があれば理由を返し、投稿しない
 export async function review(c, post) {
   if (!post.text.includes('#PR')) return 'PR表記なし';
-  if (post.text.length > 480) return '文字数超過';
+  if ([...post.text].length > 290) return '文字数超過'; // Blueskyは300文字まで
   const hit = BANNED.find((w) => post.text.includes(w));
   if (hit) return `禁止語: ${hit}`;
   if (post.comment) {

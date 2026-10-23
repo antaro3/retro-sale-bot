@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS clicks (post_id INTEGER, item_code TEXT, at TEXT);
 CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);
 `);
 
-for (const col of ['views INTEGER', 'engagement INTEGER']) {
+for (const col of ['views INTEGER', 'engagement INTEGER', 'bsky_uri TEXT']) {
   try { db.exec(`ALTER TABLE posts ADD COLUMN ${col}`); } catch {}
 }
 

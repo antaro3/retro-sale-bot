@@ -26,6 +26,7 @@ export const cfg = {
     searchUrl: str('RAKUTEN_SEARCH_URL', 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701'),
   },
   threads: { userId: str('THREADS_USER_ID'), token: str('THREADS_ACCESS_TOKEN') },
+  bluesky: { handle: str('BSKY_HANDLE').replace(/^@/, ''), appPassword: str('BSKY_APP_PASSWORD') },
   claude: { apiKey: str('ANTHROPIC_API_KEY'), model: str('CLAUDE_MODEL', 'claude-haiku-4-5') },
   site: {
     url: str('SITE_URL', 'https://example.com').replace(/\/$/, ''),
