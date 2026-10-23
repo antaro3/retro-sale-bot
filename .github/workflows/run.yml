@@ -35,6 +35,7 @@ jobs:
       - name: Pipeline
         env:
           DRY_RUN: ${{ vars.DRY_RUN || '1' }}
+          LIVE_FROM: ${{ vars.LIVE_FROM }}
           RAKUTEN_APP_ID: ${{ secrets.RAKUTEN_APP_ID }}
           RAKUTEN_ACCESS_KEY: ${{ secrets.RAKUTEN_ACCESS_KEY }}
           RAKUTEN_AFFILIATE_ID: ${{ secrets.RAKUTEN_AFFILIATE_ID }}
@@ -45,6 +46,7 @@ jobs:
           BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+          SITE_TITLE: 楽天 値下がり・新着速報
           MAX_POSTS_PER_DAY: ${{ vars.MAX_POSTS_PER_DAY || '6' }}
         run: mkdir -p data && node --no-warnings src/run.js | tee -a data/run.log
       - name: Trim log
