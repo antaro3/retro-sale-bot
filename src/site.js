@@ -72,7 +72,7 @@ function itemPage(it, offers) {
 <p><a class="btn" href="${esc(it.affiliate_url)}" rel="sponsored nofollow noopener" target="_blank">${shopLabel(it.source)}で見る（PR）</a></p></div></div>
 <h2>価格の推移</h2>${sparkline(hist) || '<p class="meta">まだ価格の変化はありません。</p>'}
 <table><tr><th>日時</th><th>価格</th></tr>${changes.slice(-15).reverse().map((h) => `<tr><td>${jstDate(h.at)}</td><td>${yen(h.price)}</td></tr>`).join('')}</table>
-${matched.map((o) => `<div class="offer"><span class="tag">PR</span> <strong>${esc(o.title)}</strong><p>${esc(o.text || '')}</p><a href="${esc(o.url)}" rel="sponsored nofollow noopener" target="_blank">詳しく見る</a></div>`).join('')}
+${matched.map((o) => `<div class="offer"><span class="tag">PR</span> <strong>${esc(o.title)}</strong><p>${esc(o.text || '')}</p><a href="${esc(o.url)}" rel="sponsored nofollow noopener" target="_blank">詳しく見る</a>${o.pixel ? `<img src="${esc(o.pixel)}" width="1" height="1" alt="" style="border:0">` : ''}</div>`).join('')}
 <p class="meta"><a href="../c/${encodeURIComponent(slug(it.keyword) || 'other')}.html">「${esc(it.keyword)}」の一覧へ</a></p>`;
   return page({ title: `${it.name.slice(0, 50)} の値下がり・価格推移`, desc: `${it.name.slice(0, 80)}の現在価格${yen(it.last_price)}。観測期間の最安${yen(min)}。価格推移を自動で記録しています。`, body, path: `items/${slug(it.item_code)}.html`, depth: 1 });
 }
