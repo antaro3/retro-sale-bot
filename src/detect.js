@@ -1,0 +1,62 @@
+import { db, now } from './db.js';
+import { cfg } from './env.js';
+
+const days = (n) => new Date(Date.now() - n * 864e5).toISOString();
+
+// 取得した商品を保存し、投稿候補（値下がり・新着・再入荷）を返す
+export function ingest(keyword, items, { bootstrap, ngWords = [] }) {
+  const candidates = [];
+  const t = now();
+  const getItem = db.prepare('SELECT * FROM items WHERE item_code=?');
+  const minRecent = db.prepare('SELECT MIN(price) m FROM prices WHERE item_code=? AND at>=? AND available=1');
+  const upsert = db.prepare(`INSERT INTO items(item_code,keyword,name,item_url,affiliate_url,image,shop,first_seen,last_seen,last_price,last_available)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(item_code) DO UPDATE SET name=excluded.name, item_url=excluded.item_url,
+    affiliate_url=excluded.affiliate_url, image=excluded.image, shop=excluded.shop, last_seen=excluded.last_seen,
+    last_price=excluded.last_price, last_available=excluded.last_available`);
+  const addPrice = db.prepare('INSERT INTO prices(item_code,price,available,at) VALUES(?,?,?,?)');
+
+  for (const it of items) {
+    if (!it.itemCode || !it.price) continue;
+    if (ngWords.some((w) => it.name.includes(w))) continue;
+    const prev = getItem.get(it.itemCode);
+    const recentMin = minRecent.get(it.itemCode, days(30))?.m;
+
+    if (!bootstrap && it.available && it.price >= cfg.rules.minPrice) {
+      if (!prev) {
+        candidates.push({ ...it, keyword, kind: 'new', prevPrice: null, score: 1 });
+      } else if (prev.last_available === 0) {
+        candidates.push({ ...it, keyword, kind: 'restock', prevPrice: prev.last_price, score: 2 });
+      } else if (prev.last_price && it.price < prev.last_price) {
+        const pct = Math.round((1 - it.price / prev.last_price) * 100);
+        // 自前の観測履歴（30日）の最安値を下回ったときだけ「値下がり」とする
+        if (pct >= cfg.rules.minDropPct && (recentMin == null || it.price < recentMin)) {
+          candidates.push({ ...it, keyword, kind: 'drop', prevPrice: prev.last_price, pct, score: 3 + pct / 10 });
+        }
+      }
+    }
+    upsert.run(it.itemCode, prev?.keyword || keyword, it.name, it.itemUrl, it.affiliateUrl, it.image, it.shop,
+      prev?.first_seen || t, t, it.price, it.available);
+    addPrice.run(it.itemCode, it.price, it.available, t);
+  }
+  return candidates;
+}
+
+// Threadsの反応（閲覧・いいね・返信・再投稿）からキーワードごとの重みを出す（計測 → 判定の自動調整）
+export function keywordWeights() {
+  const rows = db.prepare(`SELECT keyword k, AVG(COALESCE(engagement,0) + COALESCE(views,0) / 100.0) s
+    FROM posts WHERE status='posted' AND created_at>=? GROUP BY keyword`).all(days(14));
+  const w = {};
+  for (const r of rows) w[r.k] = 1 + Math.min(r.s, 10) / 10; // 1.0〜2.0
+  return w;
+}
+
+export function rank(candidates) {
+  const w = keywordWeights();
+  const cooled = db.prepare("SELECT 1 FROM posts WHERE item_code=? AND status IN ('posted','dry') AND created_at>=?");
+  const seen = new Set();
+  return candidates
+    .filter((c) => !seen.has(c.itemCode) && seen.add(c.itemCode))
+    .filter((c) => !cooled.get(c.itemCode, days(cfg.rules.cooldownDays)))
+    .map((c) => ({ ...c, score: c.score * (w[c.keyword] || 1) }))
+    .sort((a, b) => b.score - a.score);
+}
