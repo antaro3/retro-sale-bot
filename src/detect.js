@@ -18,6 +18,7 @@ export function ingest(keyword, items, { bootstrap, ngWords = [] }) {
   for (const it of items) {
     if (!it.itemCode || !it.price) continue;
     if (ngWords.some((w) => it.name.includes(w))) continue;
+    if ((it.affiliateRate || 0) < cfg.rules.minAffiliateRate) continue;
     const prev = getItem.get(it.itemCode);
     const recentMin = minRecent.get(it.itemCode, days(30))?.m;
 
@@ -57,6 +58,7 @@ export function rank(candidates) {
   return candidates
     .filter((c) => !seen.has(c.itemCode) && seen.add(c.itemCode))
     .filter((c) => !cooled.get(c.itemCode, days(cfg.rules.cooldownDays)))
-    .map((c) => ({ ...c, score: c.score * (w[c.keyword] || 1) }))
+    // 想定報酬額（価格×報酬率）が大きい商品ほど優先＝稼げるものに特化
+    .map((c) => ({ ...c, reward: Math.round(c.price * (c.affiliateRate || 0) / 100), score: c.score * (w[c.keyword] || 1) * Math.max(1, Math.sqrt(c.price * (c.affiliateRate || 0) / 100 / 50)) }))
     .sort((a, b) => b.score - a.score);
 }

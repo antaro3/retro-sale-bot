@@ -16,8 +16,11 @@ if (existsSync(envPath)) {
 const num = (k, d) => (process.env[k] === undefined || process.env[k] === '' ? d : Number(process.env[k]));
 const str = (k, d = '') => (process.env[k] || '').trim() || d;
 
+// LIVE_FROM（例: 2026-11-06T00:00:00+09:00）を過ぎたら空運転を自動で終えて本番投稿に切り替える
+const liveFrom = Date.parse(str('LIVE_FROM'));
+
 export const cfg = {
-  dryRun: str('DRY_RUN', '1') !== '0',
+  dryRun: str('DRY_RUN', '1') !== '0' && !(liveFrom && Date.now() >= liveFrom),
   rakuten: {
     appId: str('RAKUTEN_APP_ID'),
     accessKey: str('RAKUTEN_ACCESS_KEY'),
@@ -38,6 +41,7 @@ export const cfg = {
     maxPostsPerRun: num('MAX_POSTS_PER_RUN', 2),
     cooldownDays: num('COOLDOWN_DAYS', 7),
     minPrice: num('MIN_PRICE', 1000),
+    minAffiliateRate: num('MIN_AFFILIATE_RATE', 4), // 報酬率(%)がこれ未満の商品は扱わない
   },
   dbPath: str('DB_PATH', join(ROOT, 'data', 'app.db')),
   publicDir: str('PUBLIC_DIR', join(ROOT, 'public')),

@@ -76,7 +76,7 @@ export async function runOnce() {
     }
     if (cfg.dryRun) {
       update.run(post.text, 'dry', null, null, id); result.dry++;
-      log(`空運転 #${id}\n${post.text}\n${post.link}`);
+      log(`空運転 #${id}（想定報酬 約${c.reward ?? '?'}円/件・報酬率${c.affiliateRate ?? '?'}%）\n${post.text}\n${post.link}`);
       continue;
     }
     if (!threadsOn && !bskyOn) {

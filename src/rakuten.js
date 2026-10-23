@@ -36,11 +36,12 @@ function normalize(it) {
     affiliateUrl: i.affiliateUrl || i.itemUrl,
     image: (typeof img === 'string' ? img : img?.imageUrl) || '',
     shop: i.shopName || '',
+    affiliateRate: Number(i.affiliateRate || 0),
   };
 }
 
 export const searchKeyword = (keyword, hits = 30) =>
-  call({ keyword, hits: String(hits), sort: '-updateTimestamp', availability: '0' });
+  call({ keyword, hits: String(hits), sort: '-affiliateRate', availability: '0' }); // 報酬率の高い商品を優先して追跡
 
 export async function getItem(itemCode) {
   const items = await call({ itemCode, hits: '1', availability: '0' });
