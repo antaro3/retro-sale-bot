@@ -22,8 +22,11 @@ CREATE TABLE IF NOT EXISTS clicks (post_id INTEGER, item_code TEXT, at TEXT);
 CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);
 `);
 
-for (const col of ['views INTEGER', 'engagement INTEGER', 'bsky_uri TEXT']) {
+for (const col of ['views INTEGER', 'engagement INTEGER', 'bsky_uri TEXT', 'pin_id TEXT']) {
   try { db.exec(`ALTER TABLE posts ADD COLUMN ${col}`); } catch {}
+}
+for (const col of ['source TEXT', 'affiliate_rate REAL']) {
+  try { db.exec(`ALTER TABLE items ADD COLUMN ${col}`); } catch {}
 }
 
 export const now = () => new Date().toISOString();

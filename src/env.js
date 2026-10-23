@@ -30,6 +30,18 @@ export const cfg = {
   },
   threads: { userId: str('THREADS_USER_ID'), token: str('THREADS_ACCESS_TOKEN') },
   bluesky: { handle: str('BSKY_HANDLE').replace(/^@/, ''), appPassword: str('BSKY_APP_PASSWORD') },
+  yahoo: {
+    appId: str('YAHOO_APP_ID'), // Yahoo!デベロッパーのClient ID
+    vcAffiliateId: str('YAHOO_VC_AFFILIATE_ID'), // バリューコマースのアフィリエイトID
+    rate: num('YAHOO_AFFILIATE_RATE', 1), // 報酬率の想定値(%)
+  },
+  pinterest: {
+    token: str('PINTEREST_ACCESS_TOKEN'),
+    refreshToken: str('PINTEREST_REFRESH_TOKEN'),
+    appId: str('PINTEREST_APP_ID'),
+    appSecret: str('PINTEREST_APP_SECRET'),
+    boardId: str('PINTEREST_BOARD_ID'),
+  },
   claude: { apiKey: str('ANTHROPIC_API_KEY'), model: str('CLAUDE_MODEL', 'claude-haiku-4-5') },
   site: {
     url: str('SITE_URL', 'https://example.com').replace(/\/$/, ''),

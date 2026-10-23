@@ -34,9 +34,11 @@ function normalize(it) {
     available: Number(i.availability ?? 1),
     itemUrl: i.itemUrl,
     affiliateUrl: i.affiliateUrl || i.itemUrl,
-    image: (typeof img === 'string' ? img : img?.imageUrl) || '',
+    // サムネイル(128px)を大きめ(500px)に。Pinterestやサイト用
+    image: ((typeof img === 'string' ? img : img?.imageUrl) || '').replace(/_ex=\d+x\d+/, '_ex=500x500'),
     shop: i.shopName || '',
     affiliateRate: Number(i.affiliateRate || 0),
+    source: 'rakuten',
   };
 }
 

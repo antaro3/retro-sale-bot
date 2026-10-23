@@ -27,7 +27,8 @@ export async function review(c, post) {
   if (dup) return '重複文面';
 
   // 投稿直前に価格を取り直し、一致しなければ出さない
-  const fresh = await getItem(c.itemCode).catch(() => null);
+  // Yahoo!は商品コード検索がないため、同じ実行内で取得した価格をそのまま使う
+  const fresh = c.source === 'yahoo' ? c : await getItem(c.itemCode).catch(() => null);
   if (!fresh) return '再取得失敗';
   if (fresh.price !== c.price) return `価格変動 ${c.price}→${fresh.price}`;
   if (!fresh.available) return '在庫切れ';

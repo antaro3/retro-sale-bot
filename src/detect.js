@@ -4,15 +4,15 @@ import { cfg, log } from './env.js';
 const days = (n) => new Date(Date.now() - n * 864e5).toISOString();
 
 // 取得した商品を保存し、投稿候補（値下がり・新着・再入荷）を返す
-export function ingest(keyword, items, { bootstrap, ngWords = [] }) {
+export function ingest(keyword, items, { bootstrap, ngWords = [], minDropPct = cfg.rules.minDropPct }) {
   const candidates = [];
   const t = now();
   const getItem = db.prepare('SELECT * FROM items WHERE item_code=?');
   const minRecent = db.prepare('SELECT MIN(price) m FROM prices WHERE item_code=? AND at>=? AND available=1');
-  const upsert = db.prepare(`INSERT INTO items(item_code,keyword,name,item_url,affiliate_url,image,shop,first_seen,last_seen,last_price,last_available)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(item_code) DO UPDATE SET name=excluded.name, item_url=excluded.item_url,
+  const upsert = db.prepare(`INSERT INTO items(item_code,keyword,name,item_url,affiliate_url,image,shop,first_seen,last_seen,last_price,last_available,source,affiliate_rate)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(item_code) DO UPDATE SET name=excluded.name, item_url=excluded.item_url,
     affiliate_url=excluded.affiliate_url, image=excluded.image, shop=excluded.shop, last_seen=excluded.last_seen,
-    last_price=excluded.last_price, last_available=excluded.last_available`);
+    last_price=excluded.last_price, last_available=excluded.last_available, source=excluded.source, affiliate_rate=excluded.affiliate_rate`);
   const addPrice = db.prepare('INSERT INTO prices(item_code,price,available,at) VALUES(?,?,?,?)');
 
   const rates = items.map((it) => it.affiliateRate || 0);
@@ -20,7 +20,7 @@ export function ingest(keyword, items, { bootstrap, ngWords = [] }) {
   for (const it of items) {
     if (!it.itemCode || !it.price) continue;
     if (ngWords.some((w) => it.name.includes(w))) continue;
-    if ((it.affiliateRate || 0) < cfg.rules.minAffiliateRate) continue;
+    if (it.source !== 'yahoo' && (it.affiliateRate || 0) < cfg.rules.minAffiliateRate) continue;
     const prev = getItem.get(it.itemCode);
     const recentMin = minRecent.get(it.itemCode, days(30))?.m;
 
@@ -32,13 +32,13 @@ export function ingest(keyword, items, { bootstrap, ngWords = [] }) {
       } else if (prev.last_price && it.price < prev.last_price) {
         const pct = Math.round((1 - it.price / prev.last_price) * 100);
         // 自前の観測履歴（30日）の最安値を下回ったときだけ「値下がり」とする
-        if (pct >= cfg.rules.minDropPct && (recentMin == null || it.price < recentMin)) {
+        if (pct >= minDropPct && (recentMin == null || it.price < recentMin)) {
           candidates.push({ ...it, keyword, kind: 'drop', prevPrice: prev.last_price, pct, score: 3 + pct / 10 });
         }
       }
     }
     upsert.run(it.itemCode, prev?.keyword || keyword, it.name, it.itemUrl, it.affiliateUrl, it.image, it.shop,
-      prev?.first_seen || t, t, it.price, it.available);
+      prev?.first_seen || t, t, it.price, it.available, it.source || 'rakuten', it.affiliateRate || 0);
     addPrice.run(it.itemCode, it.price, it.available, t);
   }
   return candidates;
@@ -60,7 +60,7 @@ export function rank(candidates) {
   return candidates
     .filter((c) => !seen.has(c.itemCode) && seen.add(c.itemCode))
     .filter((c) => !cooled.get(c.itemCode, days(cfg.rules.cooldownDays)))
-    .filter((c) => (c.affiliateRate || 0) >= cfg.rules.minAffiliateRate) // 持ち越し候補にも報酬率の条件を適用
+    .filter((c) => c.source === 'yahoo' || (c.affiliateRate || 0) >= cfg.rules.minAffiliateRate) // 持ち越し候補にも報酬率の条件を適用
     .filter((c) => c.kind !== 'new' || cfg.rules.postNew)
     // 想定報酬額（価格×報酬率）が大きい商品ほど優先＝稼げるものに特化
     .map((c) => ({ ...c, reward: Math.round(c.price * (c.affiliateRate || 0) / 100), score: c.score * (w[c.keyword] || 1) * Math.max(1, Math.sqrt(c.price * (c.affiliateRate || 0) / 100 / 50)) }))

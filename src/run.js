@@ -11,6 +11,9 @@ import { review, postsToday } from './review.js';
 import { publishText, refreshTokenIfNeeded, fetchInsights } from './threads.js';
 import { blueskyEnabled, publishBluesky, blueskyInsights, checkBluesky } from './bluesky.js';
 import { buildSite } from './site.js';
+import { yahooEnabled, searchYahoo } from './yahoo.js';
+import { currentSale } from './sales.js';
+import { pinterestEnabled, createPin } from './pinterest.js';
 
 export async function runOnce() {
   if (existsSync(cfg.stopFile)) { log('STOPファイルがあるため停止中'); return { stopped: true }; }
@@ -21,6 +24,17 @@ export async function runOnce() {
   const bskyOn = blueskyEnabled();
   log(`配信先: ${[threadsOn && 'Threads', bskyOn && 'Bluesky'].filter(Boolean).join(', ') || 'なし（サイトのみ）'}`);
   if (bskyOn) await checkBluesky().then((h) => log('Bluesky接続OK', h)).catch((e) => log('Bluesky接続NG', e.message));
+  const pinOn = pinterestEnabled();
+  if (pinOn) log('配信先: Pinterest');
+
+  // 楽天の大型セール中は投稿枠を増やし、値下がりの判定を緩める
+  const sale = await currentSale().catch(() => null);
+  if (sale) {
+    cfg.rules.maxPostsPerDay *= 2;
+    cfg.rules.maxPostsPerRun += 1;
+    cfg.rules.minDropPct = Math.max(5, Math.floor(cfg.rules.minDropPct / 2));
+    log(`${sale.name}開催中: 1日${cfg.rules.maxPostsPerDay}件・値下がり${cfg.rules.minDropPct}%以上に拡大`);
+  }
 
   // 6'. 過去14日の投稿の反応を取り込み、判定の重みに使う
   if (!cfg.dryRun) {
@@ -50,6 +64,17 @@ export async function runOnce() {
     } catch (e) {
       log(`取得失敗 "${kw}"`, e.message);
     }
+    if (yahooEnabled()) {
+      try {
+        const yItems = await searchYahoo(kw, watch.hitsPerKeyword || 30);
+        // Yahoo!側は初めて取得するキーワードを基準作成だけにする
+        candidates.push(...ingest(kw, yItems, { bootstrap: bootstrap || !kvGet(`yahoo_seen_${kw}`), ngWords: watch.ngWords, minDropPct: cfg.rules.minDropPct }));
+        kvSet(`yahoo_seen_${kw}`, 1);
+        log(`取得(Yahoo) "${kw}" ${yItems.length}件`);
+      } catch (e) {
+        log(`取得失敗(Yahoo) "${kw}"`, e.message);
+      }
+    }
   }
   // 前回あふれた候補（24時間以内）も再挑戦する。価格は審査で取り直すので古くても安全
   const backlog = JSON.parse(kvGet('backlog') || '[]').filter((c) => Date.now() - Date.parse(c.foundAt) < 864e5);
@@ -63,11 +88,12 @@ export async function runOnce() {
   const insert = db.prepare("INSERT INTO posts(item_code,keyword,kind,price,prev_price,status,created_at) VALUES(?,?,?,?,?,'pending',?)");
   const update = db.prepare('UPDATE posts SET text=?, status=?, reason=?, threads_id=? WHERE id=?');
   const setBsky = db.prepare('UPDATE posts SET bsky_uri=? WHERE id=?');
+  const setPin = db.prepare('UPDATE posts SET pin_id=? WHERE id=?');
   const result = { posted: 0, dry: 0, rejected: 0, errors: 0 };
   for (const c of ranked) {
     if (result.posted + result.dry >= slots) break;
     const id = Number(insert.run(c.itemCode, c.keyword, c.kind, c.price, c.prevPrice, now()).lastInsertRowid);
-    const post = await buildPost(c, id);
+    const post = await buildPost(c, id, sale);
     const reason = await review(c, post);
     if (reason) {
       update.run(post.text, 'rejected', reason, null, id); result.rejected++;
@@ -79,7 +105,7 @@ export async function runOnce() {
       log(`空運転 #${id}（想定報酬 約${c.reward ?? '?'}円/件・報酬率${c.affiliateRate ?? '?'}%）\n${post.text}\n${post.link}`);
       continue;
     }
-    if (!threadsOn && !bskyOn) {
+    if (!threadsOn && !bskyOn && !pinOn) {
       update.run(post.text, 'dry', 'no-channel', null, id); result.dry++;
       log(`配信先未設定のためサイトのみ #${id}`);
       continue;
@@ -88,10 +114,12 @@ export async function runOnce() {
     let tid = null, buri = null;
     if (threadsOn) { try { tid = await publishText(post.text, post.link); } catch (e) { errs.push(e.message); } }
     if (bskyOn) { try { buri = await publishBluesky(post.text, post.link, post); } catch (e) { errs.push(e.message); } }
-    if (tid || buri) {
-      update.run(post.text, 'posted', errs.join(' / ') || null, tid, id); setBsky.run(buri, id); result.posted++;
+    let pid = null;
+    if (pinOn && post.image) { try { pid = await createPin({ title: post.title, description: post.text, link: post.link, imageUrl: post.image }); } catch (e) { errs.push(e.message); } }
+    if (tid || buri || pid) {
+      update.run(post.text, 'posted', errs.join(' / ') || null, tid, id); setBsky.run(buri, id); setPin.run(pid, id); result.posted++;
       kvSet('consecutive_errors', 0);
-      log(`投稿 #${id} threads=${tid || '-'} bluesky=${buri || '-'}`);
+      log(`投稿 #${id} threads=${tid || '-'} bluesky=${buri || '-'} pinterest=${pid || '-'}`);
     } else {
       update.run(post.text, 'error', errs.join(' / ').slice(0, 300), null, id); result.errors++;
       const n = Number(kvGet('consecutive_errors') || 0) + 1;
@@ -110,7 +138,7 @@ export async function runOnce() {
 
   // 6. サイト再生成
   const shown = buildSite();
-  log(`完了 ${JSON.stringify(result)} サイト掲載${shown}件`);
+  log(`完了 ${JSON.stringify(result)} 商品ページ${shown}件`);
   return result;
 }
 
