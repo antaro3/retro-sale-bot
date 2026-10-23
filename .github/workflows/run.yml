@@ -41,6 +41,8 @@ jobs:
           RAKUTEN_ALLOWED_SITE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
           THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          BSKY_HANDLE: ${{ vars.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
           MAX_POSTS_PER_DAY: ${{ vars.MAX_POSTS_PER_DAY || '6' }}
