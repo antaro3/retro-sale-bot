@@ -36,8 +36,19 @@ async function post(path, params) {
   return j;
 }
 
+// ユーザーIDは未設定ならトークンから自動取得
+let resolvedUid = null;
+async function userId() {
+  if (cfg.threads.userId) return cfg.threads.userId;
+  if (resolvedUid) return resolvedUid;
+  const res = await fetch(`${API}/me?fields=id&access_token=${encodeURIComponent(token())}`, { signal: AbortSignal.timeout(20000) });
+  const j = await res.json();
+  if (!j.id) throw new Error(`Threads /me ${res.status}: ${JSON.stringify(j.error || j).slice(0, 200)}`);
+  return (resolvedUid = j.id);
+}
+
 export async function publishText(text, link) {
-  const uid = cfg.threads.userId;
+  const uid = await userId();
   const container = await post(`${uid}/threads`, { media_type: 'TEXT', text, link_attachment: link });
   await new Promise((r) => setTimeout(r, Number(process.env.THREADS_WAIT_MS ?? 5000))); // コンテナ処理待ち
   const pub = await post(`${uid}/threads_publish`, { creation_id: container.id });
