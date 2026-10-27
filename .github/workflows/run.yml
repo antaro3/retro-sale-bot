@@ -59,6 +59,7 @@ jobs:
           SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
           SITE_TITLE: 楽天 値下がり・新着速報
           MAX_POSTS_PER_DAY: ${{ vars.MAX_POSTS_PER_DAY || '6' }}
+          MIN_AFFILIATE_RATE: ${{ vars.MIN_AFFILIATE_RATE || '2' }}  # 売れ筋（多くは2〜3%）も対象に。並びは想定報酬額順
         run: mkdir -p data && node --no-warnings src/run.js | tee -a data/run.log
       - name: Trim log
         if: always()
