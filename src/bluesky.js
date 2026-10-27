@@ -52,12 +52,24 @@ async function uploadThumb(imageUrl) {
   }
 }
 
+// 本文中の #タグ をBlueskyのタグ（クリック・検索できる形）にする。位置はUTF-8のバイト数で指定
+export function tagFacets(text) {
+  const enc = new TextEncoder();
+  const out = [];
+  for (const m of text.matchAll(/#([^\s#]+)/g)) {
+    const start = enc.encode(text.slice(0, m.index)).length;
+    out.push({ index: { byteStart: start, byteEnd: start + enc.encode(m[0]).length }, features: [{ $type: 'app.bsky.richtext.facet#tag', tag: m[1] }] });
+  }
+  return out;
+}
+
 export async function publishBluesky(text, link, { title, image } = {}) {
   const s = await login();
   const thumb = await uploadThumb(image);
   const record = {
     $type: 'app.bsky.feed.post',
     text,
+    facets: tagFacets(text),
     langs: ['ja'],
     createdAt: new Date().toISOString(),
     embed: {

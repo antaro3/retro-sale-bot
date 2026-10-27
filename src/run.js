@@ -14,6 +14,7 @@ import { buildSite } from './site.js';
 import { yahooEnabled, searchYahoo } from './yahoo.js';
 import { currentSale } from './sales.js';
 import { pinterestEnabled, createPin } from './pinterest.js';
+import { writeStats } from './stats.js';
 
 export async function runOnce() {
   if (existsSync(cfg.stopFile)) { log('STOPファイルがあるため停止中'); return { stopped: true }; }
@@ -147,7 +148,12 @@ export async function runOnce() {
   kvSet('backlog', JSON.stringify(ranked.filter((c) => !used.has(c.itemCode)).slice(0, 20)));
 
   // 6. サイト再生成
+  db.prepare('DELETE FROM prices WHERE at<?').run(new Date(Date.now() - 90 * 864e5).toISOString()); // 90日より古い価格記録は削除
   const shown = buildSite();
+  try {
+    const st = writeStats({ candidatesLastRun: ranked.length, sale: sale?.name || null });
+    log(`集計 追跡${st.tracked}件 / 24h価格変動${st.priceChanges24h}件 値下がり${JSON.stringify(st.drops24h)}`);
+  } catch (e) { log('集計失敗', e.message); }
   log(`完了 ${JSON.stringify(result)} 商品ページ${shown}件`);
   return result;
 }

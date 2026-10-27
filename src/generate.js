@@ -53,7 +53,8 @@ export async function buildPost(c, postId, sale = null) {
     comment,
     sale && c.source !== 'yahoo' ? `${sale.name}開催中（〜${saleEndLabel(sale)}）` : '',
     `※${hhmm()}時点の${c.source === 'yahoo' ? 'Yahoo!ショッピング' : '楽天市場'}の価格です`,
-    '#PR',
+    // ハッシュタグで検索・フィードから見つけてもらう（#PRは必須表記）
+    ['#PR', '#楽天', { drop: '#値下がり', new: '#新着', restock: '#再入荷' }[c.kind], c.keyword ? `#${c.keyword.replace(/[\s#]/g, '')}` : ''].filter(Boolean).join(' '),
   ].filter(Boolean).join('\n');
   return { text, link, comment, title: shortName(c.name, 90), image: c.image };
 }

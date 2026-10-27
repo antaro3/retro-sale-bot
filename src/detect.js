@@ -14,6 +14,7 @@ export function ingest(keyword, items, { bootstrap, ngWords = [], minDropPct = c
     affiliate_url=excluded.affiliate_url, image=excluded.image, shop=excluded.shop, last_seen=excluded.last_seen,
     last_price=excluded.last_price, last_available=excluded.last_available, source=excluded.source, affiliate_rate=excluded.affiliate_rate`);
   const addPrice = db.prepare('INSERT INTO prices(item_code,price,available,at) VALUES(?,?,?,?)');
+  const lastAt = db.prepare('SELECT MAX(at) t FROM prices WHERE item_code=?');
 
   const rates = items.map((it) => it.affiliateRate || 0);
   log(`  報酬率 "${keyword}": 最大${Math.max(0, ...rates)}% / ${cfg.rules.minAffiliateRate}%以上 ${rates.filter((r) => r >= cfg.rules.minAffiliateRate).length}件`);
@@ -39,7 +40,9 @@ export function ingest(keyword, items, { bootstrap, ngWords = [], minDropPct = c
     }
     upsert.run(it.itemCode, prev?.keyword || keyword, it.name, it.itemUrl, it.affiliateUrl, it.image, it.shop,
       prev?.first_seen || t, t, it.price, it.available, it.source || 'rakuten', it.affiliateRate || 0);
-    addPrice.run(it.itemCode, it.price, it.available, t);
+    // 毎時実行でDBが膨らまないよう、価格・在庫が同じなら6時間に1回だけ記録
+    const same = prev && prev.last_price === it.price && prev.last_available === it.available;
+    if (!same || Date.now() - Date.parse(lastAt.get(it.itemCode)?.t || 0) >= 6 * 3600e3) addPrice.run(it.itemCode, it.price, it.available, t);
   }
   return candidates;
 }
