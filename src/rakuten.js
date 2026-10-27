@@ -2,8 +2,8 @@ import { cfg, sleep } from './env.js';
 
 // 楽天APIは1秒1リクエスト程度に抑える
 let last = 0;
-async function call(params) {
-  const wait = last + Number(process.env.RAKUTEN_INTERVAL_MS ?? 1100) - Date.now();
+async function call(params, attempt = 0) {
+  const wait = last + Number(process.env.RAKUTEN_INTERVAL_MS ?? 1300) - Date.now();
   if (wait > 0) await sleep(wait);
   last = Date.now();
 
@@ -18,6 +18,8 @@ async function call(params) {
     signal: AbortSignal.timeout(15000),
   });
   const body = await res.json().catch(() => ({}));
+  // 混雑（429）は少し待って最大3回まで取り直す
+  if (res.status === 429 && attempt < 3) { await sleep(Number(process.env.RAKUTEN_RETRY_MS ?? 2500) * (attempt + 1)); return call(params, attempt + 1); }
   if (!res.ok || body.error || body.errors) {
     throw new Error(`Rakuten API ${res.status}: ${JSON.stringify(body.errors || body.error_description || body).slice(0, 200)}`);
   }
