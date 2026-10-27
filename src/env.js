@@ -54,6 +54,9 @@ export const cfg = {
     cooldownDays: num('COOLDOWN_DAYS', 7),
     minPrice: num('MIN_PRICE', 1000),
     minAffiliateRate: num('MIN_AFFILIATE_RATE', 4), // 報酬率(%)がこれ未満の商品は扱わない
+    postFromHour: num('POST_FROM_HOUR', 7), // 投稿する時間帯（日本時間）。深夜は取得・記録だけ行う
+    postToHour: num('POST_TO_HOUR', 23),
+    minPostGapMin: num('MIN_POST_GAP_MIN', 60), // 投稿どうしの最短間隔（分）。1時間ごとの実行でも投稿が固まらないように
     postNew: num('POST_NEW', 0) === 1, // 新着も投稿するか（検索順の揺れで誤検知しやすいので既定はオフ）
   },
   dbPath: str('DB_PATH', join(ROOT, 'data', 'app.db')),

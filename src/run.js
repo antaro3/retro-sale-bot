@@ -81,8 +81,12 @@ export async function runOnce() {
   const fresh = new Set(candidates.map((c) => c.itemCode));
   candidates = [...candidates.map((c) => ({ ...c, foundAt: now() })), ...backlog.filter((c) => !fresh.has(c.itemCode))];
   const ranked = rank(candidates);
-  const slots = Math.max(0, Math.min(cfg.rules.maxPostsPerRun, cfg.rules.maxPostsPerDay - postsToday()));
-  log(`候補 ${ranked.length}件 / 今回の枠 ${slots}`);
+  const jstHour = Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hourCycle: 'h23' }));
+  const lastPost = db.prepare("SELECT MAX(created_at) t FROM posts WHERE status IN ('posted','dry')").get().t;
+  const gapOk = !lastPost || Date.now() - Date.parse(lastPost) >= cfg.rules.minPostGapMin * 60e3;
+  const inHours = jstHour >= cfg.rules.postFromHour && jstHour < cfg.rules.postToHour;
+  const slots = !inHours || !gapOk ? 0 : Math.max(0, Math.min(cfg.rules.maxPostsPerRun, cfg.rules.maxPostsPerDay - postsToday()));
+  log(`候補 ${ranked.length}件 / 今回の枠 ${slots}${!inHours ? '（投稿時間外）' : !gapOk ? '（前回投稿から間隔不足）' : ''}`);
 
   // 3-5. 生成 → 審査 → 配信
   const insert = db.prepare("INSERT INTO posts(item_code,keyword,kind,price,prev_price,status,created_at) VALUES(?,?,?,?,?,'pending',?)");
