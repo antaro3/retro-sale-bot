@@ -58,7 +58,13 @@ export async function runOnce() {
   for (const kw of watch.keywords) {
     const bootstrap = countKw.get(kw).n === 0; // 初回はベースライン作成のみ
     try {
-      const items = await searchKeyword(kw, watch.hitsPerKeyword || 30);
+      // 追跡数を増やすほど値下がりを拾える。1キーワードあたり数ページ取得（重複は除く）
+      const items = [];
+      for (let pg = 1; pg <= (watch.pagesPerKeyword || 2); pg++) {
+        const got = await searchKeyword(kw, watch.hitsPerKeyword || 30, pg).catch((e) => { if (pg === 1) throw e; return []; });
+        items.push(...got.filter((g) => !items.some((i) => i.itemCode === g.itemCode)));
+        if (got.length < (watch.hitsPerKeyword || 30)) break;
+      }
       candidates.push(...ingest(kw, items, { bootstrap, ngWords: watch.ngWords }));
       log(`取得 "${kw}" ${items.length}件${bootstrap ? '（初回・基準作成）' : ''}`);
     } catch (e) {

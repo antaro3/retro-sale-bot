@@ -42,8 +42,8 @@ function normalize(it) {
   };
 }
 
-export const searchKeyword = (keyword, hits = 30) =>
-  call({ keyword, hits: String(hits), sort: '-affiliateRate', availability: '0' }); // 報酬率の高い商品を優先して追跡
+export const searchKeyword = (keyword, hits = 30, page = 1) =>
+  call({ keyword, hits: String(hits), page: String(page), sort: '-affiliateRate', availability: '0' }); // 報酬率の高い商品を優先して追跡
 
 export async function getItem(itemCode) {
   const items = await call({ itemCode, hits: '1', availability: '0' });
