@@ -60,11 +60,12 @@ export async function runOnce() {
     const bootstrap = countKw.get(kw).n === 0; // 初回はベースライン作成のみ
     try {
       // 追跡数を増やすほど値下がりを拾える。1キーワードあたり数ページ取得（重複は除く）
+      // 1回目はレビュー数順（売れ筋・毎回ほぼ同じ商品＝価格変化を追える）、2回目は報酬率順
       const items = [];
-      for (let pg = 1; pg <= (watch.pagesPerKeyword || 2); pg++) {
-        const got = await searchKeyword(kw, watch.hitsPerKeyword || 30, pg).catch((e) => { if (pg === 1) throw e; return []; });
-        items.push(...got.filter((g) => !items.some((i) => i.itemCode === g.itemCode)));
-        if (got.length < (watch.hitsPerKeyword || 30)) break;
+      const sorts = watch.sorts || ['-reviewCount', '-affiliateRate'];
+      for (let i = 0; i < sorts.length; i++) {
+        const got = await searchKeyword(kw, watch.hitsPerKeyword || 30, 1, sorts[i]).catch((e) => { if (i === 0) throw e; return []; });
+        items.push(...got.filter((g) => !items.some((x) => x.itemCode === g.itemCode)));
       }
       candidates.push(...ingest(kw, items, { bootstrap, ngWords: watch.ngWords }));
       log(`取得 "${kw}" ${items.length}件${bootstrap ? '（初回・基準作成）' : ''}`);
