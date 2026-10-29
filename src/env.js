@@ -48,7 +48,11 @@ export const cfg = {
     title: str('SITE_TITLE', 'レトロゲーム・アニメ 値下がり速報'),
   },
   rules: {
-    minDropPct: num('MIN_DROP_PCT', 10),
+    minDropPct: num('MIN_DROP_PCT', 7), // 実測（stats.json）で10%以上の値下がりは平常時ほぼ無いため7%に
+    maxPicksPerDay: num('MAX_PICKS_PER_DAY', 4), // 「人気商品」紹介の1日上限（値下がりが無い日も投稿を続けるため）
+    pickMinReviews: num('PICK_MIN_REVIEWS', 100),
+    pickMinAvg: num('PICK_MIN_AVG', 4.2),
+    pickCooldownDays: num('PICK_COOLDOWN_DAYS', 30),
     maxPostsPerDay: num('MAX_POSTS_PER_DAY', 6),
     maxPostsPerRun: num('MAX_POSTS_PER_RUN', 2),
     cooldownDays: num('COOLDOWN_DAYS', 7),

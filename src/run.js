@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { cfg, log, ROOT } from './env.js';
 import { db, now, kvGet, kvSet } from './db.js';
 import { searchKeyword } from './rakuten.js';
-import { ingest, rank } from './detect.js';
+import { ingest, rank, picks } from './detect.js';
 import { buildPost } from './generate.js';
 import { review, postsToday } from './review.js';
 import { publishText, refreshTokenIfNeeded, fetchInsights } from './threads.js';
@@ -56,6 +56,7 @@ export async function runOnce() {
   // 1-2. 取得と判定
   const countKw = db.prepare('SELECT COUNT(*) n FROM items WHERE keyword=?');
   let candidates = [];
+  const pickPool = [];
   for (const kw of watch.keywords) {
     const bootstrap = countKw.get(kw).n === 0; // 初回はベースライン作成のみ
     try {
@@ -68,6 +69,7 @@ export async function runOnce() {
         items.push(...got.filter((g) => !items.some((x) => x.itemCode === g.itemCode)));
       }
       candidates.push(...ingest(kw, items, { bootstrap, ngWords: watch.ngWords }));
+      if (!bootstrap) pickPool.push(...picks(kw, items, watch.ngWords));
       log(`取得 "${kw}" ${items.length}件${bootstrap ? '（初回・基準作成）' : ''}`);
     } catch (e) {
       log(`取得失敗 "${kw}"`, e.message);
@@ -88,7 +90,9 @@ export async function runOnce() {
   const backlog = JSON.parse(kvGet('backlog') || '[]').filter((c) => Date.now() - Date.parse(c.foundAt) < 864e5);
   const fresh = new Set(candidates.map((c) => c.itemCode));
   candidates = [...candidates.map((c) => ({ ...c, foundAt: now() })), ...backlog.filter((c) => !fresh.has(c.itemCode))];
-  const ranked = rank(candidates);
+  // 人気商品の紹介は1日の上限まで（値下がり・再入荷を優先し、空いた枠を埋める）
+  const picksToday = db.prepare("SELECT COUNT(*) n FROM posts WHERE kind='pick' AND status IN ('posted','dry') AND created_at>=?").get(new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) + 'T00:00:00+09:00').toISOString()).n;
+  const ranked = rank([...candidates, ...(picksToday < cfg.rules.maxPicksPerDay ? pickPool.filter((p) => !candidates.some((c) => c.itemCode === p.itemCode)) : [])]);
   const jstHour = Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hourCycle: 'h23' }));
   const lastPost = db.prepare("SELECT MAX(created_at) t FROM posts WHERE status IN ('posted','dry')").get().t;
   const gapOk = !lastPost || Date.now() - Date.parse(lastPost) >= cfg.rules.minPostGapMin * 60e3;
@@ -146,7 +150,7 @@ export async function runOnce() {
   }
 
   const used = new Set(db.prepare('SELECT item_code FROM posts WHERE created_at>=?').all(new Date(Date.now() - 864e5).toISOString()).map((r) => r.item_code));
-  kvSet('backlog', JSON.stringify(ranked.filter((c) => !used.has(c.itemCode)).slice(0, 20)));
+  kvSet('backlog', JSON.stringify(ranked.filter((c) => c.kind !== 'pick' && !used.has(c.itemCode)).slice(0, 20)));
 
   // 6. サイト再生成
   db.prepare('DELETE FROM prices WHERE at<?').run(new Date(Date.now() - 90 * 864e5).toISOString()); // 90日より古い価格記録は削除

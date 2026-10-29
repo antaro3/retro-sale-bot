@@ -47,6 +47,16 @@ export function ingest(keyword, items, { bootstrap, ngWords = [], minDropPct = c
   return candidates;
 }
 
+// 値動きが無くても紹介できる「人気商品」候補（レビュー数・評価が十分な売れ筋）
+export function picks(keyword, items, ngWords = []) {
+  const r = cfg.rules;
+  return items
+    .filter((it) => it.available && it.price >= r.minPrice && (it.affiliateRate || 0) >= r.minAffiliateRate)
+    .filter((it) => (it.reviewCount || 0) >= r.pickMinReviews && (it.reviewAverage || 0) >= r.pickMinAvg)
+    .filter((it) => !ngWords.some((w) => it.name.includes(w)))
+    .map((it) => ({ ...it, keyword, kind: 'pick', prevPrice: null, score: 0.8 * Math.min(2, 1 + Math.log10(it.reviewCount) / 3) }));
+}
+
 // Threadsの反応（閲覧・いいね・返信・再投稿）からキーワードごとの重みを出す（計測 → 判定の自動調整）
 export function keywordWeights() {
   const rows = db.prepare(`SELECT keyword k, AVG(COALESCE(engagement,0) + COALESCE(views,0) / 100.0) s
@@ -62,7 +72,7 @@ export function rank(candidates) {
   const seen = new Set();
   return candidates
     .filter((c) => !seen.has(c.itemCode) && seen.add(c.itemCode))
-    .filter((c) => !cooled.get(c.itemCode, days(cfg.rules.cooldownDays)))
+    .filter((c) => !cooled.get(c.itemCode, days(c.kind === 'pick' ? cfg.rules.pickCooldownDays : cfg.rules.cooldownDays)))
     .filter((c) => c.source === 'yahoo' || (c.affiliateRate || 0) >= cfg.rules.minAffiliateRate) // 持ち越し候補にも報酬率の条件を適用
     .filter((c) => c.kind !== 'new' || cfg.rules.postNew)
     // 想定報酬額（価格×報酬率）が大きい商品ほど優先＝稼げるものに特化

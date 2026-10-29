@@ -41,7 +41,7 @@ async function oneLiner(c) {
 }
 
 export async function buildPost(c, postId, sale = null) {
-  const head = { drop: '【値下がり】', new: '【新着】', restock: '【再入荷】' }[c.kind];
+  const head = { drop: '【値下がり】', new: '【新着】', restock: '【再入荷】', pick: '【人気】' }[c.kind];
   const priceLine = c.kind === 'drop'
     ? `${yen(c.prevPrice)}円 → ${yen(c.price)}円（当サイト観測で${c.pct}%ダウン）`
     : `${yen(c.price)}円`;
@@ -50,11 +50,12 @@ export async function buildPost(c, postId, sale = null) {
   const text = [
     head + shortName(c.name),
     priceLine,
+    c.kind === 'pick' && c.reviewCount ? `★${c.reviewAverage}（レビュー${yen(c.reviewCount)}件）` : '',
     comment,
     sale && c.source !== 'yahoo' ? `${sale.name}開催中（〜${saleEndLabel(sale)}）` : '',
     `※${hhmm()}時点の${c.source === 'yahoo' ? 'Yahoo!ショッピング' : '楽天市場'}の価格です`,
     // ハッシュタグで検索・フィードから見つけてもらう（#PRは必須表記）
-    ['#PR', '#楽天', { drop: '#値下がり', new: '#新着', restock: '#再入荷' }[c.kind], c.keyword ? `#${c.keyword.replace(/[\s#]/g, '')}` : ''].filter(Boolean).join(' '),
+    ['#PR', '#楽天', { drop: '#値下がり', new: '#新着', restock: '#再入荷', pick: '#人気' }[c.kind], c.keyword ? `#${c.keyword.replace(/[\s#]/g, '')}` : ''].filter(Boolean).join(' '),
   ].filter(Boolean).join('\n');
   return { text, link, comment, title: shortName(c.name, 90), image: c.image };
 }

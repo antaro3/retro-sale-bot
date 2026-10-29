@@ -40,6 +40,8 @@ function normalize(it) {
     image: ((typeof img === 'string' ? img : img?.imageUrl) || '').replace(/_ex=\d+x\d+/, '_ex=500x500'),
     shop: i.shopName || '',
     affiliateRate: Number(i.affiliateRate || 0),
+    reviewCount: Number(i.reviewCount || 0),
+    reviewAverage: Number(i.reviewAverage || 0),
     source: 'rakuten',
   };
 }

@@ -5,7 +5,7 @@ import { cfg, ROOT } from './env.js';
 
 const esc = (s = '') => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const yen = (n) => `${Number(n).toLocaleString('ja-JP')}円`;
-const label = { drop: '値下がり', new: '新着', restock: '再入荷' };
+const label = { drop: '値下がり', new: '新着', restock: '再入荷', pick: '人気' };
 const slug = (code) => code.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const jstDate = (iso, withTime = true) => new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year: withTime ? undefined : 'numeric', month: 'numeric', day: 'numeric', ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}) });
 const shopLabel = (src) => (src === 'yahoo' ? 'Yahoo!ショッピング' : '楽天市場');
