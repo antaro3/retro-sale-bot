@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);
 for (const col of ['views INTEGER', 'engagement INTEGER', 'bsky_uri TEXT', 'pin_id TEXT']) {
   try { db.exec(`ALTER TABLE posts ADD COLUMN ${col}`); } catch {}
 }
-for (const col of ['source TEXT', 'affiliate_rate REAL']) {
+for (const col of ['source TEXT', 'affiliate_rate REAL', 'review_count INTEGER', 'review_avg REAL']) {
   try { db.exec(`ALTER TABLE items ADD COLUMN ${col}`); } catch {}
 }
 

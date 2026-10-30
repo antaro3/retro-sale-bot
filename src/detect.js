@@ -9,10 +9,11 @@ export function ingest(keyword, items, { bootstrap, ngWords = [], minDropPct = c
   const t = now();
   const getItem = db.prepare('SELECT * FROM items WHERE item_code=?');
   const minRecent = db.prepare('SELECT MIN(price) m FROM prices WHERE item_code=? AND at>=? AND available=1');
-  const upsert = db.prepare(`INSERT INTO items(item_code,keyword,name,item_url,affiliate_url,image,shop,first_seen,last_seen,last_price,last_available,source,affiliate_rate)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(item_code) DO UPDATE SET name=excluded.name, item_url=excluded.item_url,
+  const upsert = db.prepare(`INSERT INTO items(item_code,keyword,name,item_url,affiliate_url,image,shop,first_seen,last_seen,last_price,last_available,source,affiliate_rate,review_count,review_avg)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(item_code) DO UPDATE SET name=excluded.name, item_url=excluded.item_url,
     affiliate_url=excluded.affiliate_url, image=excluded.image, shop=excluded.shop, last_seen=excluded.last_seen,
-    last_price=excluded.last_price, last_available=excluded.last_available, source=excluded.source, affiliate_rate=excluded.affiliate_rate`);
+    last_price=excluded.last_price, last_available=excluded.last_available, source=excluded.source, affiliate_rate=excluded.affiliate_rate,
+    review_count=excluded.review_count, review_avg=excluded.review_avg`);
   const addPrice = db.prepare('INSERT INTO prices(item_code,price,available,at) VALUES(?,?,?,?)');
   const lastAt = db.prepare('SELECT MAX(at) t FROM prices WHERE item_code=?');
 
@@ -39,7 +40,7 @@ export function ingest(keyword, items, { bootstrap, ngWords = [], minDropPct = c
       }
     }
     upsert.run(it.itemCode, prev?.keyword || keyword, it.name, it.itemUrl, it.affiliateUrl, it.image, it.shop,
-      prev?.first_seen || t, t, it.price, it.available, it.source || 'rakuten', it.affiliateRate || 0);
+      prev?.first_seen || t, t, it.price, it.available, it.source || 'rakuten', it.affiliateRate || 0, it.reviewCount || 0, it.reviewAverage || 0);
     // 毎時実行でDBが膨らまないよう、価格・在庫が同じなら6時間に1回だけ記録
     const same = prev && prev.last_price === it.price && prev.last_available === it.available;
     if (!same || Date.now() - Date.parse(lastAt.get(it.itemCode)?.t || 0) >= 6 * 3600e3) addPrice.run(it.itemCode, it.price, it.available, t);

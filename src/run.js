@@ -15,6 +15,7 @@ import { yahooEnabled, searchYahoo } from './yahoo.js';
 import { currentSale } from './sales.js';
 import { pinterestEnabled, createPin } from './pinterest.js';
 import { writeStats } from './stats.js';
+import { notifyIndexNow } from './indexnow.js';
 
 export async function runOnce() {
   if (existsSync(cfg.stopFile)) { log('STOPファイルがあるため停止中'); return { stopped: true }; }
@@ -154,7 +155,10 @@ export async function runOnce() {
 
   // 6. サイト再生成
   db.prepare('DELETE FROM prices WHERE at<?').run(new Date(Date.now() - 90 * 864e5).toISOString()); // 90日より古い価格記録は削除
-  const shown = buildSite();
+  const site = buildSite();
+  const shown = site.count;
+  const notified = await notifyIndexNow(site.urls);
+  if (notified) log(`検索エンジンへ通知 ${notified}ページ`);
   try {
     const st = writeStats({ candidatesLastRun: ranked.length, sale: sale?.name || null });
     log(`集計 追跡${st.tracked}件 / 24h価格変動${st.priceChanges24h}件 値下がり${JSON.stringify(st.drops24h)}`);
