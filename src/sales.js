@@ -5,7 +5,9 @@ import { kvGet, kvSet } from './db.js';
 const PAGES = [
   { name: '楽天スーパーセール', url: 'https://event.rakuten.co.jp/campaign/supersale/' },
   { name: '楽天お買い物マラソン', url: 'https://event.rakuten.co.jp/campaign/point-up/marathon/' },
+  { name: '楽天ブラックフライデー', url: 'https://event.rakuten.co.jp/campaign/point-up/blackfriday/' },
 ];
+export const SALE_PAGES = PAGES;
 const RANGE = /(\d{4})年(\d{1,2})月(\d{1,2})日[(（][^)）]+[)）]\s*(\d{1,2}):(\d{2})\s*[～~〜]\s*(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日[(（][^)）]+[)）]\s*(\d{1,2}):(\d{2})/g;
 const jst = (y, mo, d, h, mi) => Date.parse(`${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}T${String(h).padStart(2, '0')}:${mi}:00+09:00`);
 
@@ -36,17 +38,20 @@ export async function currentSale(now = Date.now()) {
   if (cached && now - cached.checkedAt < 3 * 3600e3) return cached.sale && now <= cached.sale.end ? cached.sale : null;
 
   let sale = null;
+  const periods = []; // サイトの「次のセールはいつ？」ページ用に、公式ページから読めた期間をすべて残す
   for (const p of PAGES) {
     try {
       const res = await fetch(p.url, { signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'Mozilla/5.0' } });
       const period = parsePeriods(await res.text());
-      if (period && now >= period.start && now <= period.end) { sale = { name: p.name, ...period }; break; }
+      if (period) periods.push({ name: p.name, url: p.url, ...period });
+      if (!sale && period && now >= period.start && now <= period.end) sale = { name: p.name, ...period };
     } catch (e) {
       log('セール情報取得失敗', p.name, e.message);
     }
   }
   sale ||= heuristicSuperSale(now);
   kvSet('sale_cache', JSON.stringify({ checkedAt: now, sale }));
+  if (periods.length) kvSet('sale_periods', JSON.stringify({ checkedAt: now, periods }));
   return sale;
 }
 

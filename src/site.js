@@ -1,6 +1,7 @@
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { db } from './db.js';
+import { db, kvGet } from './db.js';
+import { SALE_PAGES } from './sales.js';
 import { cfg, ROOT } from './env.js';
 
 const esc = (s = '') => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -86,6 +87,29 @@ ${related.length ? `<h2>同じカテゴリの人気商品</h2>${related.map((r) 
 const card = (it, prefix, extra = '') => `<article><a href="${prefix}items/${slug(it.item_code)}.html">${it.image ? `<img class="t" src="${esc(it.image)}" alt="" loading="lazy">` : ''}
 <div>${extra}<h2>${esc(it.name.slice(0, 80))}</h2><p class="price"><b>${yen(it.last_price)}</b></p><p class="meta">${stars(it) ? stars(it) + ' ・ ' : ''}${esc(it.shop)} ・ ${shopLabel(it.source)}</p></div></a></article>`;
 
+// 「楽天の次のセールはいつ？」ページ：公式ページから読めた日程だけを載せる（推測の日付は書かない）
+function salePage(items, drops) {
+  const now = Date.now();
+  const fmt = (t) => new Date(t).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  const data = JSON.parse(kvGet('sale_periods') || 'null');
+  const ps = (data?.periods || []).filter((p) => p.end >= now).sort((a, b) => a.start - b.start);
+  const live = ps.filter((p) => p.start <= now), next = ps.filter((p) => p.start > now);
+  const row = (p) => `<tr><td><a href="${esc(p.url)}" rel="nofollow noopener" target="_blank">${esc(p.name)}</a></td><td>${fmt(p.start)} 〜 ${fmt(p.end)}</td></tr>`;
+  const d = items.filter((it) => drops[it.item_code]).sort((a, b) => drops[b.item_code].pct - drops[a.item_code].pct).slice(0, 20);
+  const body = `<h1>楽天の次のセールはいつ？（自動更新）</h1>
+<p class="meta">楽天市場の公式キャンペーンページを数時間ごとに確認し、発表済みの日程だけを掲載しています。最終確認：${data ? fmt(data.checkedAt) : '確認中'}</p>
+<h2>開催中のセール</h2>${live.length ? `<table>${live.map(row).join('')}</table>` : '<p>現在開催中の大型セールはありません。</p>'}
+<h2>発表済みの次のセール</h2>${next.length ? `<table>${next.map(row).join('')}</table>` : '<p>次回の日程はまだ公式に発表されていません。発表され次第このページに反映されます。</p>'}
+<h2>主なセールの例年の傾向</h2>
+<table><tr><th>セール</th><th>例年の時期</th></tr>
+<tr><td>楽天スーパーセール</td><td>3月・6月・9月・12月の上旬ごろ</td></tr>
+<tr><td>楽天お買い物マラソン</td><td>ほぼ毎月（スーパーセールのない月を中心に）</td></tr>
+<tr><td>楽天ブラックフライデー</td><td>11月下旬ごろ</td></tr></table>
+<p class="meta">※例年の傾向は目安です。正確な日程は各公式ページ（${SALE_PAGES.map((p) => `<a href="${esc(p.url)}" rel="nofollow noopener" target="_blank">${esc(p.name)}</a>`).join('・')}）でご確認ください。</p>
+${d.length ? `<h2>最近値下がりした商品</h2>${d.map((it) => card(it, './', `<span class="tag">値下がり</span> <span class="meta">${yen(drops[it.item_code].from)}→${yen(it.last_price)}（${drops[it.item_code].pct}%）</span>`)).join('\n')}` : ''}`;
+  return page({ title: '楽天の次のセールはいつ？スーパーセール・お買い物マラソン・ブラックフライデーの日程（自動更新）', desc: '楽天スーパーセール・お買い物マラソン・ブラックフライデーの開催日程を公式ページから自動で確認して掲載。開催中・次回のセールと、最近値下がりした商品をまとめています。', body, path: 'sale.html' });
+}
+
 // サイト全体を再生成：トップ、商品ページ、カテゴリ、サイトマップ、robots、プライバシーポリシー
 export function buildSite() {
   const dir = cfg.publicDir;
@@ -134,6 +158,7 @@ ${dropped.length ? `<h2>最近値下がりした${esc(kw)}</h2>${dropped.map((it
   const recent = db.prepare(`SELECT p.kind, p.prev_price, p.price AS post_price, p.created_at, i.* FROM posts p JOIN items i ON i.item_code=p.item_code
     WHERE p.status IN ${statuses} ORDER BY p.id DESC LIMIT 60`).all();
   const body = `<h1>${esc(cfg.site.title)}</h1>
+<p><a class="btn" href="sale.html">楽天の次のセールはいつ？</a></p>
 <nav>${kws.map((k) => `<a href="c/${slug(k) || 'other'}.html">${esc(k)}</a>`).join('')}</nav>
 ${(() => { const d = items.filter((it) => drops[it.item_code]).sort((a, b) => drops[b.item_code].pct - drops[a.item_code].pct).slice(0, 12); return d.length ? `<h2>最近値下がりした商品</h2>${d.map((it) => card(it, './', `<span class="tag">値下がり</span> <span class="meta">${yen(drops[it.item_code].from)}→${yen(it.last_price)}（${drops[it.item_code].pct}%）</span>`)).join('\n')}<h2>新着の紹介</h2>` : ''; })()}
 ${recent.map((r) => card(r, './', `<span class="tag">${label[r.kind] || ''}</span> <span class="meta">${jstDate(r.created_at)}${r.kind === 'drop' && r.prev_price ? ` ・ ${yen(r.prev_price)}→${yen(r.post_price)}` : ''}</span>`)).join('\n') || '<p>まだ投稿はありません。</p>'}`;
@@ -144,7 +169,9 @@ ${recent.map((r) => card(r, './', `<span class="tag">${label[r.kind] || ''}</spa
 <p>当サイトは利用者の個人情報を収集しません。アフィリエイトリンク先の各サービスでは、各社の方針に基づきCookie等が使用される場合があります。</p>
 <p>当サイトはSNS（Bluesky、Pinterest等）へ商品情報を自動投稿するため、各SNSのAPIを利用しています。取得したアクセストークンは投稿のみに使用し、第三者に提供しません。</p>` }));
 
-  const urls = ['', 'privacy.html', ...kws.map((k) => `c/${slug(k) || 'other'}.html`), ...items.map((it) => `items/${slug(it.item_code)}.html`)];
+  writeFileSync(join(dir, 'sale.html'), salePage(items, drops));
+
+  const urls = ['', 'sale.html', 'privacy.html', ...kws.map((k) => `c/${slug(k) || 'other'}.html`), ...items.map((it) => `items/${slug(it.item_code)}.html`)];
   writeFileSync(join(dir, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${esc(cfg.site.url)}/${u}</loc><lastmod>${new Date().toISOString().slice(0, 10)}</lastmod></url>`).join('\n')}\n</urlset>\n`);
   writeFileSync(join(dir, 'robots.txt'), `User-agent: *\n${noindex() ? 'Disallow: /\n' : 'Allow: /\n'}Sitemap: ${cfg.site.url}/sitemap.xml\n`);
   return { count: items.length, urls: urls.map((u) => `${cfg.site.url}/${u}`) };
