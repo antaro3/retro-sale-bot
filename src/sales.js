@@ -51,7 +51,9 @@ export async function currentSale(now = Date.now()) {
   }
   sale ||= heuristicSuperSale(now);
   kvSet('sale_cache', JSON.stringify({ checkedAt: now, sale }));
-  if (periods.length) kvSet('sale_periods', JSON.stringify({ checkedAt: now, periods }));
+  // 何も読めなかった回は前回の日程を残し、確認時刻だけ更新する
+  const prevP = JSON.parse(kvGet('sale_periods') || 'null');
+  kvSet('sale_periods', JSON.stringify({ checkedAt: now, periods: periods.length ? periods : prevP?.periods || [] }));
   return sale;
 }
 
