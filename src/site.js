@@ -61,7 +61,7 @@ function sparkline(points) {
 <text x="${P}" y="14" font-size="12" fill="currentColor">最高 ${yen(hi)}</text><text x="${P}" y="${H - 6}" font-size="12" fill="currentColor">最安 ${yen(lo)}</text></svg>`;
 }
 
-function itemPage(it, offers) {
+function itemPage(it, offers, related = []) {
   const hist = db.prepare('SELECT price, at FROM prices WHERE item_code=? AND available=1 ORDER BY at').all(it.item_code);
   const changes = hist.filter((h, i) => i === 0 || h.price !== hist[i - 1].price);
   const min = Math.min(...hist.map((h) => h.price)), max = Math.max(...hist.map((h) => h.price));
@@ -77,42 +77,14 @@ ${stars(it) ? `<p class="meta">レビュー ${stars(it)}</p>` : ''}
 <h2>価格の推移</h2>${sparkline(hist) || '<p class="meta">まだ価格の変化はありません。</p>'}
 <table><tr><th>日時</th><th>価格</th></tr>${changes.slice(-15).reverse().map((h) => `<tr><td>${jstDate(h.at)}</td><td>${yen(h.price)}</td></tr>`).join('')}</table>
 ${matched.map((o) => `<div class="offer"><span class="tag">PR</span> <strong>${esc(o.title)}</strong><p>${esc(o.text || '')}</p><a href="${esc(o.url)}" rel="sponsored nofollow noopener" target="_blank">詳しく見る</a>${o.pixel ? `<img src="${esc(o.pixel)}" width="1" height="1" alt="" style="border:0">` : ''}</div>`).join('')}
-<p class="meta"><a href="../c/${encodeURIComponent(slug(it.keyword) || 'other')}.html">「${esc(it.keyword)}」の一覧へ</a></p>`;
+${related.length ? `<h2>同じカテゴリの人気商品</h2>${related.map((r) => card(r, '../')).join('\n')}` : ''}
+<p class="meta"><a href="../c/${encodeURIComponent(slug(it.keyword) || 'other')}.html">「${esc(it.keyword)}」の人気ランキングへ</a></p>
+<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'Product', name: it.name.slice(0, 150), image: it.image || undefined, offers: { '@type': 'Offer', price: it.last_price, priceCurrency: 'JPY', availability: 'https://schema.org/InStock', url: it.item_url, seller: { '@type': 'Organization', name: it.shop || shopLabel(it.source) } } }).replace(/</g, '\\u003c')}</script>`;
   return page({ title: `${it.name.slice(0, 50)} の価格推移・値下がり履歴`, desc: `${it.name.slice(0, 80)}の現在価格${yen(it.last_price)}。観測期間の最安${yen(min)}。価格推移を自動で記録しています。`, body, path: `items/${slug(it.item_code)}.html`, depth: 1 });
 }
 
 const card = (it, prefix, extra = '') => `<article><a href="${prefix}items/${slug(it.item_code)}.html">${it.image ? `<img class="t" src="${esc(it.image)}" alt="" loading="lazy">` : ''}
 <div>${extra}<h2>${esc(it.name.slice(0, 80))}</h2><p class="price"><b>${yen(it.last_price)}</b></p><p class="meta">${stars(it) ? stars(it) + ' ・ ' : ''}${esc(it.shop)} ・ ${shopLabel(it.source)}</p></div></a></article>`;
-
-// 楽天ROOM用の「今日の投稿候補」（ROOMは自動投稿ツールが規約上NGのため、人がタップして投稿する半自動）
-function roomPage(items, drops) {
-  const day = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
-  const seed = [...day].reduce((a, c) => a + c.charCodeAt(0), 0);
-  const popular = items.filter((it) => (it.review_count || 0) >= 100 && (it.review_avg || 0) >= 4.2 && it.source !== 'yahoo');
-  const dropped = items.filter((it) => drops[it.item_code] && it.source !== 'yahoo');
-  // 値下がり→人気商品（日替わりでずらす）の順に15件
-  const rot = popular.length ? popular.map((_, i) => popular[(i + seed * 7) % popular.length]) : [];
-  const list = [...new Map([...dropped, ...rot].map((it) => [it.item_code, it])).values()].slice(0, 15);
-  const short = (s) => s.replace(/【[^】]*】|\[[^\]]*\]|★|☆|送料無料|ポイント\d+倍/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
-  const text = (it) => [
-    drops[it.item_code] ? `値下がり中！ ${yen(drops[it.item_code].from)}→${yen(it.last_price)}` : `レビュー${Number(it.review_count).toLocaleString('ja-JP')}件・★${Number(it.review_avg).toFixed(2)}の人気商品`,
-    short(it.name),
-    `（${jstDate(it.last_seen, false)}時点の価格です）`,
-    `#楽天 #${(it.keyword || '').replace(/\s/g, '')} #おすすめ`,
-  ].join('\n');
-  const rows = list.map((it, i) => {
-    const code = encodeURIComponent(it.item_code);
-    return `<article style="padding:12px 0"><div style="display:flex;gap:12px">${it.image ? `<img class="t" src="${esc(it.image)}" alt="">` : ''}
-<div style="flex:1"><h2>${i + 1}. ${esc(it.name.slice(0, 60))}</h2><p class="price"><b>${yen(it.last_price)}</b> <span class="meta">${stars(it)}</span></p>
-<textarea id="t${i}" rows="4" style="width:100%;font-size:13px">${esc(text(it))}</textarea>
-<p><button onclick="navigator.clipboard.writeText(document.getElementById('t${i}').value);this.textContent='コピーしました'">① 文章をコピー</button>
-<a class="btn" style="padding:6px 12px;font-size:13px" href="https://room.rakuten.co.jp/mix?itemcode=${code}" target="_blank" rel="noopener">② ROOMに投稿</a>
-<a class="meta" href="${esc(it.item_url)}" target="_blank" rel="noopener">商品ページ</a></p></div></div></article>`;
-  }).join('\n');
-  return page({ title: '楽天ROOM 今日の投稿候補', desc: '楽天ROOM用の投稿候補', path: 'room.html', depth: 0,
-    body: `<h1>楽天ROOM 今日の投稿候補（${day}）</h1><p class="meta">①で文章をコピー → ②でROOMを開いて貼り付けて投稿。1件10秒ほど。毎日自動で入れ替わります。</p>${rows || '<p>候補を準備中です。</p>'}` })
-    .replace('<meta name="viewport"', '<meta name="robots" content="noindex"><meta name="viewport"');
-}
 
 // サイト全体を再生成：トップ、商品ページ、カテゴリ、サイトマップ、robots、プライバシーポリシー
 export function buildSite() {
@@ -130,7 +102,6 @@ export function buildSite() {
       OR (SELECT COUNT(DISTINCT price) FROM prices p WHERE p.item_code=i.item_code AND p.at>=?) >= 2
       OR (COALESCE(i.review_count,0) >= 30 AND i.last_seen >= ?))
     ORDER BY COALESCE(i.review_count,0) DESC LIMIT 3000`).all(since, seen7);
-  for (const it of items) writeFileSync(join(dir, 'items', `${slug(it.item_code)}.html`), itemPage(it, offers));
 
   // 直近7日の値下がり（観測した価格どうしの比較）
   const drops = {};
@@ -144,6 +115,11 @@ export function buildSite() {
   const byKw = {};
   for (const it of items) (byKw[it.keyword] ||= []).push(it);
   const kws = Object.keys(byKw).sort();
+  // 商品ページ（同じカテゴリの人気商品への内部リンクつき）
+  for (const it of items) {
+    const related = (byKw[it.keyword] || []).filter((r) => r.item_code !== it.item_code).slice(0, 6);
+    writeFileSync(join(dir, 'items', `${slug(it.item_code)}.html`), itemPage(it, offers, related));
+  }
   for (const kw of kws) {
     const list = byKw[kw];
     const ranked = [...list].sort((a, b) => (b.review_count || 0) - (a.review_count || 0)).slice(0, 50);
@@ -167,8 +143,6 @@ ${recent.map((r) => card(r, './', `<span class="tag">${label[r.kind] || ''}</spa
 <p>当サイトは楽天アフィリエイト、バリューコマース、A8.net等のアフィリエイトプログラムに参加しています。リンク先での購入等により当サイトが報酬を受け取る場合があります。</p>
 <p>当サイトは利用者の個人情報を収集しません。アフィリエイトリンク先の各サービスでは、各社の方針に基づきCookie等が使用される場合があります。</p>
 <p>当サイトはSNS（Bluesky、Pinterest等）へ商品情報を自動投稿するため、各SNSのAPIを利用しています。取得したアクセストークンは投稿のみに使用し、第三者に提供しません。</p>` }));
-
-  writeFileSync(join(dir, 'room.html'), roomPage(items, drops));
 
   const urls = ['', 'privacy.html', ...kws.map((k) => `c/${slug(k) || 'other'}.html`), ...items.map((it) => `items/${slug(it.item_code)}.html`)];
   writeFileSync(join(dir, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${esc(cfg.site.url)}/${u}</loc><lastmod>${new Date().toISOString().slice(0, 10)}</lastmod></url>`).join('\n')}\n</urlset>\n`);

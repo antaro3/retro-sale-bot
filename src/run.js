@@ -58,7 +58,13 @@ export async function runOnce() {
   const countKw = db.prepare('SELECT COUNT(*) n FROM items WHERE keyword=?');
   let candidates = [];
   const pickPool = [];
-  for (const kw of watch.keywords) {
+  // 固定キーワード＋巡回キーワード（毎回 rotatePerRun 件ずつ順番に）
+  const rot = watch.rotate || [];
+  const per = Math.min(rot.length, watch.rotatePerRun || 0);
+  const start = Number(kvGet('rotate_pos') || 0) % Math.max(1, rot.length);
+  const rotNow = Array.from({ length: per }, (_, i) => rot[(start + i) % rot.length]);
+  if (rot.length) kvSet('rotate_pos', (start + per) % rot.length);
+  for (const kw of [...watch.keywords, ...rotNow]) {
     const bootstrap = countKw.get(kw).n === 0; // 初回はベースライン作成のみ
     try {
       // 追跡数を増やすほど値下がりを拾える。1キーワードあたり数ページ取得（重複は除く）
