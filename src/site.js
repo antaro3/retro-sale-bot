@@ -8,6 +8,8 @@ const esc = (s = '') => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<
 const yen = (n) => `${Number(n).toLocaleString('ja-JP')}円`;
 const label = { drop: '値下がり', new: '新着', restock: '再入荷', pick: '人気' };
 const slug = (code) => code.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+// カテゴリ名（日本語）からURL用の名前を作る：英数字部分＋短いハッシュ（日本語だけの名前どうしが重ならないように）
+const kwSlug = (kw = '') => { let h = 2166136261; for (const ch of kw) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return `${slug(kw) ? slug(kw) + '-' : ''}${h.toString(36)}`; };
 const jstDate = (iso, withTime = true) => new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year: withTime ? undefined : 'numeric', month: 'numeric', day: 'numeric', ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}) });
 // 検索エンジンに載せるか（既定は載せる。止めたいときだけ SITE_NOINDEX=1）
 const noindex = () => process.env.SITE_NOINDEX === '1';
@@ -79,7 +81,7 @@ ${stars(it) ? `<p class="meta">レビュー ${stars(it)}</p>` : ''}
 <table><tr><th>日時</th><th>価格</th></tr>${changes.slice(-15).reverse().map((h) => `<tr><td>${jstDate(h.at)}</td><td>${yen(h.price)}</td></tr>`).join('')}</table>
 ${matched.map((o) => `<div class="offer"><span class="tag">PR</span> <strong>${esc(o.title)}</strong><p>${esc(o.text || '')}</p><a href="${esc(o.url)}" rel="sponsored nofollow noopener" target="_blank">詳しく見る</a>${o.pixel ? `<img src="${esc(o.pixel)}" width="1" height="1" alt="" style="border:0">` : ''}</div>`).join('')}
 ${related.length ? `<h2>同じカテゴリの人気商品</h2>${related.map((r) => card(r, '../')).join('\n')}` : ''}
-<p class="meta"><a href="../c/${encodeURIComponent(slug(it.keyword) || 'other')}.html">「${esc(it.keyword)}」の人気ランキングへ</a></p>
+<p class="meta"><a href="../c/${kwSlug(it.keyword)}.html">「${esc(it.keyword)}」の人気ランキングへ</a></p>
 <script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'Product', name: it.name.slice(0, 150), image: it.image || undefined, offers: { '@type': 'Offer', price: it.last_price, priceCurrency: 'JPY', availability: 'https://schema.org/InStock', url: it.item_url, seller: { '@type': 'Organization', name: it.shop || shopLabel(it.source) } } }).replace(/</g, '\\u003c')}</script>`;
   return page({ title: `${it.name.slice(0, 50)} の価格推移・値下がり履歴`, desc: `${it.name.slice(0, 80)}の現在価格${yen(it.last_price)}。観測期間の最安${yen(min)}。価格推移を自動で記録しています。`, body, path: `items/${slug(it.item_code)}.html`, depth: 1 });
 }
@@ -139,6 +141,28 @@ export function buildSite() {
   const byKw = {};
   for (const it of items) (byKw[it.keyword] ||= []).push(it);
   const kws = Object.keys(byKw).sort();
+  // 価格帯ページ（「〇〇 1万円以下」などの検索向け）：各カテゴリで商品が十分ある価格帯を最大2つ
+  const BANDS = [3000, 5000, 10000, 20000, 30000, 50000, 100000];
+  const bandPages = [];
+  for (const kw of kws) {
+    const list = byKw[kw];
+    if (list.length < 15) continue;
+    const prices = list.map((it) => it.last_price).sort((a, b) => a - b);
+    const picks = [...new Set([0.35, 0.65].map((q) => BANDS.find((b) => b >= prices[Math.floor(prices.length * q)])).filter(Boolean))];
+    for (const b of picks) {
+      const under = list.filter((it) => it.last_price <= b);
+      if (under.length < 8 || under.length === list.length) continue;
+      const path = `c/${kwSlug(kw)}-under-${b}.html`;
+      const label = `${b.toLocaleString('ja-JP')}円以下`;
+      const body = `<h1>${esc(kw)} ${label}の人気ランキング</h1>
+<p class="meta">${label}で買える${esc(kw)}を、楽天市場のレビュー件数が多い順に並べています。価格は毎日自動で更新（${jstDate(new Date().toISOString(), false)}更新）。</p>
+${under.slice(0, 40).map((it, i) => card(it, '../', `<span class="tag">${i + 1}位</span>`)).join('\n')}
+<p class="meta"><a href="${kwSlug(kw)}.html">「${esc(kw)}」の人気ランキング（全価格帯）へ</a></p>`;
+      writeFileSync(join(dir, path), page({ title: `${kw} ${label}の人気ランキング・価格推移｜${cfg.site.title}`, desc: `${label}で買える${kw}の人気商品をレビュー件数順に紹介。価格推移と値下がりも毎日自動で記録しています。`, body, path, depth: 1 }));
+      bandPages.push({ kw, path, label });
+    }
+  }
+
   // 商品ページ（同じカテゴリの人気商品への内部リンクつき）
   for (const it of items) {
     const related = (byKw[it.keyword] || []).filter((r) => r.item_code !== it.item_code).slice(0, 6);
@@ -150,16 +174,17 @@ export function buildSite() {
     const dropped = list.filter((it) => drops[it.item_code]).sort((a, b) => drops[b.item_code].pct - drops[a.item_code].pct).slice(0, 20);
     const body = `<h1>${esc(kw)} 人気ランキングと価格推移</h1>
 <p class="meta">楽天市場のレビュー件数が多い順に並べ、価格の変化を自動で記録しています（${jstDate(new Date().toISOString(), false)}更新）。</p>
+${bandPages.filter((p) => p.kw === kw).map((p) => `<a href="${p.path.slice(2)}">${p.label}で探す</a>`).join(' ・ ')}
 ${dropped.length ? `<h2>最近値下がりした${esc(kw)}</h2>${dropped.map((it) => card(it, '../', `<span class="tag">値下がり</span> <span class="meta">${yen(drops[it.item_code].from)}→${yen(it.last_price)}（${drops[it.item_code].pct}%）</span>`)).join('\n')}` : ''}
 <h2>レビュー件数ランキング</h2>${ranked.map((it, i) => card(it, '../', `<span class="tag">${i + 1}位</span>`)).join('\n')}`;
-    writeFileSync(join(dir, 'c', `${slug(kw) || 'other'}.html`), page({ title: `${kw} 人気ランキング・価格推移｜${cfg.site.title}`, desc: `${kw}の人気商品（レビュー件数順）と価格推移・値下がりを毎日自動で記録しています。`, body, path: `c/${slug(kw) || 'other'}.html`, depth: 1 }));
+    writeFileSync(join(dir, 'c', `${kwSlug(kw)}.html`), page({ title: `${kw} 人気ランキング・価格推移｜${cfg.site.title}`, desc: `${kw}の人気商品（レビュー件数順）と価格推移・値下がりを毎日自動で記録しています。`, body, path: `c/${kwSlug(kw)}.html`, depth: 1 }));
   }
 
   const recent = db.prepare(`SELECT p.kind, p.prev_price, p.price AS post_price, p.created_at, i.* FROM posts p JOIN items i ON i.item_code=p.item_code
     WHERE p.status IN ${statuses} ORDER BY p.id DESC LIMIT 60`).all();
   const body = `<h1>${esc(cfg.site.title)}</h1>
 <p><a class="btn" href="sale.html">楽天の次のセールはいつ？</a></p>
-<nav>${kws.map((k) => `<a href="c/${slug(k) || 'other'}.html">${esc(k)}</a>`).join('')}</nav>
+<nav>${kws.map((k) => `<a href="c/${kwSlug(k)}.html">${esc(k)}</a>`).join('')}</nav>
 ${(() => { const d = items.filter((it) => drops[it.item_code]).sort((a, b) => drops[b.item_code].pct - drops[a.item_code].pct).slice(0, 12); return d.length ? `<h2>最近値下がりした商品</h2>${d.map((it) => card(it, './', `<span class="tag">値下がり</span> <span class="meta">${yen(drops[it.item_code].from)}→${yen(it.last_price)}（${drops[it.item_code].pct}%）</span>`)).join('\n')}<h2>新着の紹介</h2>` : ''; })()}
 ${recent.map((r) => card(r, './', `<span class="tag">${label[r.kind] || ''}</span> <span class="meta">${jstDate(r.created_at)}${r.kind === 'drop' && r.prev_price ? ` ・ ${yen(r.prev_price)}→${yen(r.post_price)}` : ''}</span>`)).join('\n') || '<p>まだ投稿はありません。</p>'}`;
   writeFileSync(join(dir, 'index.html'), page({ title: `${cfg.site.title}｜人気商品の価格推移を毎日記録`, desc: '楽天市場の人気商品の価格推移・値下がり・再入荷を毎日自動で記録し、カテゴリ別ランキングで紹介しています。', body, path: '' }));
@@ -171,7 +196,7 @@ ${recent.map((r) => card(r, './', `<span class="tag">${label[r.kind] || ''}</spa
 
   writeFileSync(join(dir, 'sale.html'), salePage(items, drops));
 
-  const urls = ['', 'sale.html', 'privacy.html', ...kws.map((k) => `c/${slug(k) || 'other'}.html`), ...items.map((it) => `items/${slug(it.item_code)}.html`)];
+  const urls = ['', 'sale.html', 'privacy.html', ...kws.map((k) => `c/${kwSlug(k)}.html`), ...bandPages.map((p) => p.path), ...items.map((it) => `items/${slug(it.item_code)}.html`)];
   writeFileSync(join(dir, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${esc(cfg.site.url)}/${u}</loc><lastmod>${new Date().toISOString().slice(0, 10)}</lastmod></url>`).join('\n')}\n</urlset>\n`);
   writeFileSync(join(dir, 'robots.txt'), `User-agent: *\n${noindex() ? 'Disallow: /\n' : 'Allow: /\n'}Sitemap: ${cfg.site.url}/sitemap.xml\n`);
   return { count: items.length, urls: urls.map((u) => `${cfg.site.url}/${u}`) };
