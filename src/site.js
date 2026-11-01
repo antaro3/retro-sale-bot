@@ -163,6 +163,30 @@ ${under.slice(0, 40).map((it, i) => card(it, '../', `<span class="tag">${i + 1}�
     }
   }
 
+  // メーカー別ページ（「パナソニック ドライヤー」などの検索向け）：商品名にメーカー名がある商品が5件以上のときだけ作る
+  const BRANDS = [['パナソニック', /パナソニック|panasonic/i], ['シャープ', /シャープ|sharp/i], ['日立', /日立|hitachi/i], ['東芝', /東芝|toshiba/i],
+    ['アイリスオーヤマ', /アイリスオーヤマ|iris ?ohyama/i], ['ダイソン', /ダイソン|dyson/i], ['アイロボット', /ルンバ|アイロボット|irobot|roomba/i],
+    ['アンカー', /アンカー|anker/i], ['ソニー', /ソニー|sony/i], ['象印', /象印/], ['タイガー', /タイガー魔法瓶|tiger/i], ['山善', /山善|yamazen/i],
+    ['ブラウン', /ブラウン|braun/i], ['フィリップス', /フィリップス|philips/i], ['オムロン', /オムロン|omron/i], ['タニタ', /タニタ|tanita/i],
+    ['デロンギ', /デロンギ|delonghi|de'longhi/i], ['バルミューダ', /バルミューダ|balmuda/i], ['エコバックス', /エコバックス|ecovacs/i],
+    ['SwitchBot', /switchbot|スイッチボット/i], ['Jackery', /jackery|ジャクリ/i], ['EcoFlow', /ecoflow|エコフロー/i], ['ロジクール', /ロジクール|logicool|logitech/i],
+    ['Apple', /\bapple\b|アップル/i], ['JBL', /\bjbl\b/i], ['Bose', /\bbose\b|ボーズ/i], ['Shokz', /shokz|ショックス/i], ['ヤーマン', /ヤーマン|ya-man/i],
+    ['リファ', /リファ|refa/i], ['ティファール', /ティファール|t-fal|tefal/i], ['山崎実業', /山崎実業/], ['ニトリ', /ニトリ|nitori/i]];
+  const brandPages = [];
+  for (const kw of kws) {
+    for (const [brand, re] of BRANDS) {
+      const list = byKw[kw].filter((it) => re.test(it.name));
+      if (list.length < 5) continue;
+      const path = `c/${kwSlug(kw)}-${kwSlug(brand)}.html`;
+      const body = `<h1>${esc(brand)}の${esc(kw)} 人気ランキング</h1>
+<p class="meta">楽天市場で販売中の${esc(brand)}の${esc(kw)}を、レビュー件数が多い順に並べています。価格は毎日自動で更新（${jstDate(new Date().toISOString(), false)}更新）。</p>
+${list.slice(0, 40).map((it, i) => card(it, '../', `<span class="tag">${i + 1}位</span>`)).join('\n')}
+<p class="meta"><a href="${kwSlug(kw)}.html">「${esc(kw)}」の人気ランキング（全メーカー）へ</a></p>`;
+      writeFileSync(join(dir, path), page({ title: `${brand} ${kw} 人気ランキング・価格推移｜${cfg.site.title}`, desc: `${brand}の${kw}の人気商品をレビュー件数順に紹介。価格推移と値下がりも毎日自動で記録しています。`, body, path, depth: 1 }));
+      brandPages.push({ kw, path, label: brand });
+    }
+  }
+
   // 商品ページ（同じカテゴリの人気商品への内部リンクつき）
   for (const it of items) {
     const related = (byKw[it.keyword] || []).filter((r) => r.item_code !== it.item_code).slice(0, 6);
@@ -174,7 +198,7 @@ ${under.slice(0, 40).map((it, i) => card(it, '../', `<span class="tag">${i + 1}�
     const dropped = list.filter((it) => drops[it.item_code]).sort((a, b) => drops[b.item_code].pct - drops[a.item_code].pct).slice(0, 20);
     const body = `<h1>${esc(kw)} 人気ランキングと価格推移</h1>
 <p class="meta">楽天市場のレビュー件数が多い順に並べ、価格の変化を自動で記録しています（${jstDate(new Date().toISOString(), false)}更新）。</p>
-${bandPages.filter((p) => p.kw === kw).map((p) => `<a href="${p.path.slice(2)}">${p.label}で探す</a>`).join(' ・ ')}
+${[...bandPages, ...brandPages].filter((p) => p.kw === kw).map((p) => `<a href="${p.path.slice(2)}">${p.label}で探す</a>`).join(' ・ ')}
 ${dropped.length ? `<h2>最近値下がりした${esc(kw)}</h2>${dropped.map((it) => card(it, '../', `<span class="tag">値下がり</span> <span class="meta">${yen(drops[it.item_code].from)}→${yen(it.last_price)}（${drops[it.item_code].pct}%）</span>`)).join('\n')}` : ''}
 <h2>レビュー件数ランキング</h2>${ranked.map((it, i) => card(it, '../', `<span class="tag">${i + 1}位</span>`)).join('\n')}`;
     writeFileSync(join(dir, 'c', `${kwSlug(kw)}.html`), page({ title: `${kw} 人気ランキング・価格推移｜${cfg.site.title}`, desc: `${kw}の人気商品（レビュー件数順）と価格推移・値下がりを毎日自動で記録しています。`, body, path: `c/${kwSlug(kw)}.html`, depth: 1 }));
@@ -196,7 +220,7 @@ ${recent.map((r) => card(r, './', `<span class="tag">${label[r.kind] || ''}</spa
 
   writeFileSync(join(dir, 'sale.html'), salePage(items, drops));
 
-  const urls = ['', 'sale.html', 'privacy.html', ...kws.map((k) => `c/${kwSlug(k)}.html`), ...bandPages.map((p) => p.path), ...items.map((it) => `items/${slug(it.item_code)}.html`)];
+  const urls = ['', 'sale.html', 'privacy.html', ...kws.map((k) => `c/${kwSlug(k)}.html`), ...bandPages.map((p) => p.path), ...brandPages.map((p) => p.path), ...items.map((it) => `items/${slug(it.item_code)}.html`)];
   writeFileSync(join(dir, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${esc(cfg.site.url)}/${u}</loc><lastmod>${new Date().toISOString().slice(0, 10)}</lastmod></url>`).join('\n')}\n</urlset>\n`);
   writeFileSync(join(dir, 'robots.txt'), `User-agent: *\n${noindex() ? 'Disallow: /\n' : 'Allow: /\n'}Sitemap: ${cfg.site.url}/sitemap.xml\n`);
   return { count: items.length, urls: urls.map((u) => `${cfg.site.url}/${u}`) };
