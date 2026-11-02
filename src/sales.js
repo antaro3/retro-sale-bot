@@ -49,6 +49,7 @@ export async function currentSale(now = Date.now()) {
       log('セール情報取得失敗', p.name, e.message);
     }
   }
+  log(`セール日程の確認: ${periods.map((p) => `${p.name} ${new Date(p.start + 9 * 3600e3).toISOString().slice(5, 16)}〜`).join(' / ') || '発表なし'}`);
   sale ||= heuristicSuperSale(now);
   kvSet('sale_cache', JSON.stringify({ checkedAt: now, sale }));
   // 何も読めなかった回は前回の日程を残し、確認時刻だけ更新する

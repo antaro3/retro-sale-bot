@@ -37,6 +37,8 @@ table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px
 .offer{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:12px;margin:16px 0}
 svg{max-width:100%;height:auto}`;
 
+// セール開催中・開始前（7日以内）は全ページの上部に案内を出す
+let saleBanner = () => '';
 const page = ({ title, desc, body, path, depth = 0 }) => {
   const up = depth ? '../'.repeat(depth) : './';
   return `<!doctype html><html lang="ja"><head><meta charset="utf-8">
@@ -47,7 +49,7 @@ ${noindex() ? '<meta name="robots" content="noindex">' : ''}
 <style>${CSS}</style></head><body>
 <header><a href="${up}" style="text-decoration:none;color:inherit"><strong>${esc(cfg.site.title)}</strong></a>
 <p class="pr">【PR】当サイトは楽天アフィリエイト等のアフィリエイトプログラムを利用しています。価格は表示時点のもので、購入時と異なる場合があります。値下がり率は当サイトの観測履歴との比較です。</p></header>
-<main>${body}</main>
+<main>${saleBanner(depth)}${body}</main>
 <footer class="pr"><a href="${up}privacy.html">プライバシーポリシー</a> ・ 自動更新</footer></body></html>`;
 };
 
@@ -118,6 +120,12 @@ export function buildSite() {
   mkdirSync(join(dir, 'items'), { recursive: true });
   mkdirSync(join(dir, 'c'), { recursive: true });
   const offers = loadOffers();
+  {
+    const now = Date.now();
+    const ps = (JSON.parse(kvGet('sale_periods') || 'null')?.periods || []).filter((p) => p.end >= now && p.start - now < 7 * 864e5).sort((a, b) => a.start - b.start);
+    const f = (t) => new Date(t).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+    saleBanner = (depth) => (ps.length ? `<div class="offer"><strong>${ps.map((p) => `${p.start <= now ? '開催中' : 'まもなく開始'}：${esc(p.name)}（${f(p.start)}〜${f(p.end)}）`).join('<br>')}</strong> <a href="${depth ? '../'.repeat(depth) : './'}sale.html">セール情報を見る</a></div>` : '');
+  }
   const statuses = cfg.dryRun ? "('posted','dry')" : "('posted')";
 
   // ページを作る商品：投稿した商品＋この30日で価格が動いた商品＋継続観測している売れ筋（レビュー30件以上）。最大3000件
