@@ -12,7 +12,7 @@ import { publishText, refreshTokenIfNeeded, fetchInsights } from './threads.js';
 import { blueskyEnabled, publishBluesky, blueskyInsights, checkBluesky } from './bluesky.js';
 import { buildSite } from './site.js';
 import { yahooEnabled, searchYahoo } from './yahoo.js';
-import { currentSale } from './sales.js';
+import { currentSale, saleEndLabel } from './sales.js';
 import { pinterestEnabled, createPin } from './pinterest.js';
 import { writeStats } from './stats.js';
 import { notifyIndexNow } from './indexnow.js';
@@ -36,6 +36,17 @@ export async function runOnce() {
     cfg.rules.maxPostsPerRun += 1;
     cfg.rules.minDropPct = Math.max(5, Math.floor(cfg.rules.minDropPct / 2));
     log(`${sale.name}開催中: 1日${cfg.rules.maxPostsPerDay}件・値下がり${cfg.rules.minDropPct}%以上に拡大`);
+    // セールごとに1回だけ「開催中」のお知らせを投稿（サイトのセールページへ誘導）
+    const key = `sale_announced_${sale.name}_${sale.start}`;
+    const h = Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hourCycle: 'h23' }));
+    if (!kvGet(key) && h >= cfg.rules.postFromHour && h < cfg.rules.postToHour) {
+      const text = `【開催中】${sale.name}\n〜${saleEndLabel(sale)}まで\n最近値下がりした人気商品をまとめています\n#PR #楽天 #${sale.name.replace(/^楽天/, '')} #セール`;
+      if (cfg.dryRun) log(`空運転（セールお知らせ）\n${text}`);
+      else if (bskyOn) {
+        try { await publishBluesky(text, `${cfg.site.url}/sale.html`, { title: `${sale.name}開催中｜値下がり・人気商品まとめ` }); kvSet(key, now()); log('セールお知らせを投稿'); }
+        catch (e) { log('セールお知らせ投稿失敗', e.message); }
+      }
+    }
   }
 
   // 6'. 過去14日の投稿の反応を取り込み、判定の重みに使う
