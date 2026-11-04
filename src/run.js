@@ -16,6 +16,7 @@ import { currentSale, saleEndLabel } from './sales.js';
 import { pinterestEnabled, createPin } from './pinterest.js';
 import { writeStats } from './stats.js';
 import { notifyIndexNow } from './indexnow.js';
+import { weeklyDigest, weekKey } from './digest.js';
 
 export async function runOnce() {
   if (existsSync(cfg.stopFile)) { log('STOPファイルがあるため停止中'); return { stopped: true }; }
@@ -175,6 +176,19 @@ export async function runOnce() {
 
   // 6. サイト再生成
   db.prepare('DELETE FROM prices WHERE at<?').run(new Date(Date.now() - 90 * 864e5).toISOString()); // 90日より古い価格記録は削除
+  // 週1回（日曜12時以降の最初の実行）に「今週の値下がりTOP3」を投稿
+  {
+    const j = new Date(Date.now() + 9 * 3600e3);
+    const wk = `weekly_${weekKey()}`;
+    if (j.getUTCDay() === 0 && j.getUTCHours() >= 12 && j.getUTCHours() < cfg.rules.postToHour && !kvGet(wk)) {
+      const text = weeklyDigest();
+      if (text && cfg.dryRun) log(`空運転（週まとめ）\n${text}`);
+      else if (text && bskyOn) {
+        try { await publishBluesky(text, `${cfg.site.url}/`, { title: `${cfg.site.title}｜今週の値下がり` }); kvSet(wk, now()); log('週まとめを投稿'); }
+        catch (e) { log('週まとめ投稿失敗', e.message); }
+      }
+    }
+  }
   const site = buildSite();
   const shown = site.count;
   const notified = await notifyIndexNow(site.urls);
