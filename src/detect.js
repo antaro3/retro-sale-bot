@@ -69,7 +69,8 @@ export function keywordWeights() {
 
 export function rank(candidates) {
   const w = keywordWeights();
-  const cooled = db.prepare("SELECT 1 FROM posts WHERE item_code=? AND status IN ('posted','dry') AND created_at>=?");
+  // 本番では「実際に投稿した商品」だけを再投稿禁止の対象にする（空運転の記録で本番の候補を潰さない）
+  const cooled = db.prepare(`SELECT 1 FROM posts WHERE item_code=? AND status IN ${cfg.dryRun ? "('posted','dry')" : "('posted')"} AND created_at>=?`);
   const seen = new Set();
   return candidates
     .filter((c) => !seen.has(c.itemCode) && seen.add(c.itemCode))

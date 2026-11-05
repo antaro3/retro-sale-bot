@@ -7,7 +7,7 @@ const COMMENT_BANNED = [...BANNED, '公式', '限定', 'お得', '安い'];
 
 export function postsToday() {
   const start = new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) + 'T00:00:00+09:00').toISOString();
-  return db.prepare("SELECT COUNT(*) n FROM posts WHERE status IN ('posted','dry') AND created_at>=?").get(start).n;
+  return db.prepare(`SELECT COUNT(*) n FROM posts WHERE status IN ${cfg.dryRun ? "('posted','dry')" : "('posted')"} AND created_at>=?`).get(start).n;
 }
 
 // 自動審査。問題があれば理由を返し、投稿しない

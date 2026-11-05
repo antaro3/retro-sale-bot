@@ -113,10 +113,11 @@ export async function runOnce() {
   const fresh = new Set(candidates.map((c) => c.itemCode));
   candidates = [...candidates.map((c) => ({ ...c, foundAt: now() })), ...backlog.filter((c) => !fresh.has(c.itemCode))];
   // 人気商品の紹介は1日の上限まで（値下がり・再入荷を優先し、空いた枠を埋める）
-  const picksToday = db.prepare("SELECT COUNT(*) n FROM posts WHERE kind='pick' AND status IN ('posted','dry') AND created_at>=?").get(new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) + 'T00:00:00+09:00').toISOString()).n;
+  const counted = cfg.dryRun ? "('posted','dry')" : "('posted')";
+  const picksToday = db.prepare(`SELECT COUNT(*) n FROM posts WHERE kind='pick' AND status IN ${counted} AND created_at>=?`).get(new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) + 'T00:00:00+09:00').toISOString()).n;
   const ranked = rank([...candidates, ...(picksToday < cfg.rules.maxPicksPerDay ? pickPool.filter((p) => !candidates.some((c) => c.itemCode === p.itemCode)) : [])]);
   const jstHour = Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hourCycle: 'h23' }));
-  const lastPost = db.prepare("SELECT MAX(created_at) t FROM posts WHERE status IN ('posted','dry')").get().t;
+  const lastPost = db.prepare(`SELECT MAX(created_at) t FROM posts WHERE status IN ${counted}`).get().t;
   const gapOk = !lastPost || Date.now() - Date.parse(lastPost) >= cfg.rules.minPostGapMin * 60e3;
   const inHours = jstHour >= cfg.rules.postFromHour && jstHour < cfg.rules.postToHour;
   const slots = !inHours || !gapOk ? 0 : Math.max(0, Math.min(cfg.rules.maxPostsPerRun, cfg.rules.maxPostsPerDay - postsToday()));
