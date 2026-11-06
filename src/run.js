@@ -9,7 +9,7 @@ import { ingest, rank, picks } from './detect.js';
 import { buildPost } from './generate.js';
 import { review, postsToday } from './review.js';
 import { publishText, refreshTokenIfNeeded, fetchInsights } from './threads.js';
-import { blueskyEnabled, publishBluesky, blueskyInsights, checkBluesky } from './bluesky.js';
+import { blueskyEnabled, publishBluesky, blueskyInsights, checkBluesky, ensureProfile } from './bluesky.js';
 import { buildSite } from './site.js';
 import { yahooEnabled, searchYahoo } from './yahoo.js';
 import { currentSale, saleEndLabel } from './sales.js';
@@ -27,6 +27,7 @@ export async function runOnce() {
   const bskyOn = blueskyEnabled();
   log(`配信先: ${[threadsOn && 'Threads', bskyOn && 'Bluesky'].filter(Boolean).join(', ') || 'なし（サイトのみ）'}`);
   if (bskyOn) await checkBluesky().then((h) => log('Bluesky接続OK', h)).catch((e) => log('Bluesky接続NG', e.message));
+  if (bskyOn && !cfg.dryRun) await ensureProfile().then((ch) => ch && log('Blueskyプロフィールを設定')).catch((e) => log('プロフィール設定失敗', e.message));
   const pinOn = pinterestEnabled();
   if (pinOn) log('配信先: Pinterest');
 

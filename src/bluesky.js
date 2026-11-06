@@ -1,4 +1,6 @@
-import { cfg, log } from './env.js';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { cfg, log, ROOT } from './env.js';
 
 const PDS = 'https://bsky.social/xrpc';
 let session = null;
@@ -93,4 +95,21 @@ export async function blueskyInsights(uris) {
     }
   }
   return out;
+}
+
+// プロフィール（表示名・紹介文・アイコン）を整える。PR表記とサイトへの案内を入れて、業者っぽさを減らす
+export const PROFILE = {
+  displayName: '楽天 値下がり・人気商品速報',
+  description: '楽天市場の人気商品の値下がり・再入荷・セール情報を自動でお知らせするbotです。価格は投稿時点のものです。\n#PR 楽天アフィリエイトを利用しています。\n価格推移まとめ→ https://antaro3.github.io/retro-sale-bot/',
+};
+export async function ensureProfile() {
+  const s = await login();
+  let cur = {};
+  try { cur = (await xrpc('com.atproto.repo.getRecord', { query: { repo: s.did, collection: 'app.bsky.actor.profile', rkey: 'self' } })).value || {}; } catch {}
+  if (cur.description === PROFILE.description && cur.displayName === PROFILE.displayName && cur.avatar) return false;
+  const record = { ...cur, $type: 'app.bsky.actor.profile', displayName: PROFILE.displayName, description: PROFILE.description };
+  const img = join(ROOT, 'assets', 'avatar.png');
+  if (!cur.avatar && existsSync(img)) record.avatar = (await xrpc('com.atproto.repo.uploadBlob', { raw: readFileSync(img), contentType: 'image/png' })).blob;
+  await xrpc('com.atproto.repo.putRecord', { body: { repo: s.did, collection: 'app.bsky.actor.profile', rkey: 'self', record } });
+  return true;
 }
