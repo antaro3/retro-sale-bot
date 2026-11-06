@@ -70,6 +70,12 @@ function itemPage(it, offers, related = []) {
   const hist = db.prepare('SELECT price, at FROM prices WHERE item_code=? AND available=1 ORDER BY at').all(it.item_code);
   const changes = hist.filter((h, i) => i === 0 || h.price !== hist[i - 1].price);
   const min = Math.min(...hist.map((h) => h.price)), max = Math.max(...hist.map((h) => h.price));
+  // 買い時の目安（当サイトの観測価格だけで判定。断定はしない）
+  const varied = changes.length >= 2;
+  const cur = it.last_price;
+  const verdict = !varied ? `観測期間中、価格は${yen(cur)}から変わっていません。`
+    : cur <= min ? `現在の価格は観測期間の最安値です（最高値${yen(max)}より${Math.round((1 - cur / max) * 100)}%安い）。`
+    : `観測期間の最安値（${yen(min)}）より${Math.round((cur / min - 1) * 100)}%高い価格です。`;
   const hay = `${it.name} ${it.keyword}`;
   const matched = offers.filter((o) => (o.match || []).some((m) => hay.includes(m)));
   const body = `<h1>${esc(it.name.slice(0, 90))} の価格推移・値下がり情報</h1>
@@ -79,13 +85,14 @@ function itemPage(it, offers, related = []) {
 ${stars(it) ? `<p class="meta">レビュー ${stars(it)}</p>` : ''}
 <p class="meta">観測期間（${jstDate(hist[0]?.at || it.first_seen, false)}〜）の最安 ${yen(min)} ／ 最高 ${yen(max)}</p>
 <p><a class="btn" href="${esc(it.affiliate_url)}" rel="sponsored nofollow noopener" target="_blank">${shopLabel(it.source)}で見る（PR）</a></p></div></div>
+<h2>買い時の目安</h2><p>${verdict}</p><p class="meta">※当サイトが記録した価格どうしの比較です。ポイント還元やクーポンは含みません。</p>
 <h2>価格の推移</h2>${sparkline(hist) || '<p class="meta">まだ価格の変化はありません。</p>'}
 <table><tr><th>日時</th><th>価格</th></tr>${changes.slice(-15).reverse().map((h) => `<tr><td>${jstDate(h.at)}</td><td>${yen(h.price)}</td></tr>`).join('')}</table>
 ${matched.map((o) => `<div class="offer"><span class="tag">PR</span> <strong>${esc(o.title)}</strong><p>${esc(o.text || '')}</p><a href="${esc(o.url)}" rel="sponsored nofollow noopener" target="_blank">詳しく見る</a>${o.pixel ? `<img src="${esc(o.pixel)}" width="1" height="1" alt="" style="border:0">` : ''}</div>`).join('')}
 ${related.length ? `<h2>同じカテゴリの人気商品</h2>${related.map((r) => card(r, '../')).join('\n')}` : ''}
 <p class="meta"><a href="../c/${kwSlug(it.keyword)}.html">「${esc(it.keyword)}」の人気ランキングへ</a></p>
 <script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'Product', name: it.name.slice(0, 150), image: it.image || undefined, offers: { '@type': 'Offer', price: it.last_price, priceCurrency: 'JPY', availability: 'https://schema.org/InStock', url: it.item_url, seller: { '@type': 'Organization', name: it.shop || shopLabel(it.source) } } }).replace(/</g, '\\u003c')}</script>`;
-  return page({ title: `${it.name.slice(0, 50)} の価格推移・値下がり履歴`, desc: `${it.name.slice(0, 80)}の現在価格${yen(it.last_price)}。観測期間の最安${yen(min)}。価格推移を自動で記録しています。`, body, path: `items/${slug(it.item_code)}.html`, depth: 1 });
+  return page({ title: `${it.name.slice(0, 50)} の価格推移・値下がり履歴`, desc: `${it.name.slice(0, 70)}の現在価格${yen(it.last_price)}。${verdict} 価格推移を毎日自動で記録しています。`, body, path: `items/${slug(it.item_code)}.html`, depth: 1 });
 }
 
 const card = (it, prefix, extra = '') => `<article><a href="${prefix}items/${slug(it.item_code)}.html">${it.image ? `<img class="t" src="${esc(it.image)}" alt="" loading="lazy">` : ''}
