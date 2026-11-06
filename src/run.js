@@ -2,7 +2,7 @@
 // cron で定期実行する（例：1日4回）
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cfg, log, ROOT } from './env.js';
+import { cfg, log, ROOT, sleep } from './env.js';
 import { db, now, kvGet, kvSet } from './db.js';
 import { searchKeyword } from './rakuten.js';
 import { ingest, rank, picks } from './detect.js';
@@ -149,6 +149,8 @@ export async function runOnce() {
       log(`配信先未設定のためサイトのみ #${id}`);
       continue;
     }
+    // 同じ実行内の2件目以降は少し間を空ける（数秒で連投しない）
+    if (result.posted > 0 && cfg.rules.postSpacingSec > 0) await sleep(cfg.rules.postSpacingSec * 1000);
     const errs = [];
     let tid = null, buri = null;
     if (threadsOn) { try { tid = await publishText(post.text, post.link); } catch (e) { errs.push(e.message); } }
