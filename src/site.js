@@ -9,7 +9,7 @@ const yen = (n) => `${Number(n).toLocaleString('ja-JP')}円`;
 const label = { drop: '値下がり', new: '新着', restock: '再入荷', pick: '人気' };
 const slug = (code) => code.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 // カテゴリ名（日本語）からURL用の名前を作る：英数字部分＋短いハッシュ（日本語だけの名前どうしが重ならないように）
-const kwSlug = (kw = '') => { let h = 2166136261; for (const ch of kw) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return `${slug(kw) ? slug(kw) + '-' : ''}${h.toString(36)}`; };
+export const kwSlug = (kw = '') => { let h = 2166136261; for (const ch of kw) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return `${slug(kw) ? slug(kw) + '-' : ''}${h.toString(36)}`; };
 const jstDate = (iso, withTime = true) => new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year: withTime ? undefined : 'numeric', month: 'numeric', day: 'numeric', ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}) });
 // 検索エンジンに載せるか（既定は載せる。止めたいときだけ SITE_NOINDEX=1）
 const noindex = () => process.env.SITE_NOINDEX === '1';

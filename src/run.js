@@ -16,7 +16,8 @@ import { currentSale, saleEndLabel } from './sales.js';
 import { pinterestEnabled, createPin } from './pinterest.js';
 import { writeStats } from './stats.js';
 import { notifyIndexNow } from './indexnow.js';
-import { weeklyDigest, weekKey } from './digest.js';
+import { weeklyDigest, weekKey, categoryDigest } from './digest.js';
+import { kwSlug } from './site.js';
 
 export async function runOnce() {
   if (existsSync(cfg.stopFile)) { log('STOPファイルがあるため停止中'); return { stopped: true }; }
@@ -172,6 +173,22 @@ export async function runOnce() {
         log('3回連続失敗のため自動停止（STOPファイル作成）');
         break;
       }
+    }
+  }
+
+  // カテゴリ別の値下がりまとめ（1日2件まで・投稿時間内・同じカテゴリは3日あけて）
+  if (inHours && bskyOn && !cfg.dryRun) {
+    const day = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+    const cnt = Number(kvGet(`catdigest_${day}`) || 0);
+    const hist = JSON.parse(kvGet('catdigest_hist') || '[]').filter((h) => Date.now() - h.t < 3 * 864e5);
+    const d = cnt < 2 ? categoryDigest(hist.map((h) => h.k)) : null;
+    if (d) {
+      if (result.posted > 0 && cfg.rules.postSpacingSec > 0) await sleep(cfg.rules.postSpacingSec * 1000);
+      try {
+        await publishBluesky(d.text, `${cfg.site.url}/c/${kwSlug(d.kw)}.html`, { title: `${d.kw} 人気ランキング・値下がり情報` });
+        kvSet(`catdigest_${day}`, cnt + 1); kvSet('catdigest_hist', JSON.stringify([...hist, { k: d.kw, t: Date.now() }]));
+        log(`値下がりまとめを投稿: ${d.kw}`);
+      } catch (e) { log('値下がりまとめ投稿失敗', e.message); }
     }
   }
 
