@@ -56,7 +56,7 @@ export const cfg = {
     maxPostsPerDay: num('MAX_POSTS_PER_DAY', 6),
     maxPostsPerRun: num('MAX_POSTS_PER_RUN', 2),
     cooldownDays: num('COOLDOWN_DAYS', 7),
-    minPrice: num('MIN_PRICE', 1000),
+    minPrice: num('MIN_PRICE', 3000), // 低価格は1件の報酬が数十円しかない。実績（11/7 空気清浄機18,500円→報酬925円）から高めの商品を優先
     minAffiliateRate: num('MIN_AFFILIATE_RATE', 4), // 報酬率(%)がこれ未満の商品は扱わない
     postFromHour: num('POST_FROM_HOUR', 7), // 投稿する時間帯（日本時間）。深夜は取得・記録だけ行う
     postToHour: num('POST_TO_HOUR', 23),
