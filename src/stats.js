@@ -1,7 +1,7 @@
 // 運用状況の集計。判定基準の調整用に public/stats.json として公開する（個人情報・キーは含まない）
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { db } from './db.js';
+import { db, kvGet } from './db.js';
 import { cfg } from './env.js';
 
 const ago = (h) => new Date(Date.now() - h * 3600e3).toISOString();
@@ -39,6 +39,7 @@ export function computeStats(extra = {}) {
     topDrops24h: biggest.slice(0, 10),
     posts7d: Object.fromEntries(posts.map((r) => [r.status, r.n])),
     rules: { minDropPct: cfg.rules.minDropPct, maxPostsPerDay: cfg.rules.maxPostsPerDay, minAffiliateRate: cfg.rules.minAffiliateRate },
+    indexNow: JSON.parse(kvGet('indexnow_last') || 'null'),
     ...extra,
   };
 }

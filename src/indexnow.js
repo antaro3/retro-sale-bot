@@ -25,6 +25,7 @@ export async function notifyIndexNow(urls) {
       body: JSON.stringify({ host, key: KEY, keyLocation: `${cfg.site.url}/${KEY}.txt`, urlList: list }),
       signal: AbortSignal.timeout(20000),
     });
+    kvSet('indexnow_last', JSON.stringify({ at: new Date().toISOString(), status: res.status, count: list.length }));
     if (!res.ok && res.status !== 202) throw new Error(`HTTP ${res.status}`);
     for (const u of list) sent.add(u);
     kvSet('indexnow_sent', JSON.stringify([...sent].slice(-20000)));
@@ -32,6 +33,7 @@ export async function notifyIndexNow(urls) {
     return list.length;
   } catch (e) {
     log('IndexNow通知失敗（次回再送）', e.message);
+    if (!/HTTP/.test(e.message)) kvSet('indexnow_last', JSON.stringify({ at: new Date().toISOString(), error: e.message.slice(0, 120) }));
     return 0;
   }
 }
