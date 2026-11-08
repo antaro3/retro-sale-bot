@@ -1,5 +1,7 @@
 # auto-affiliate（値下がり速報bot）
 
+**公開サイト：[楽天 値下がり・人気商品の価格推移](https://antaro3.github.io/retro-sale-bot/)**（毎日自動更新）／[楽天の次のセールはいつ？](https://antaro3.github.io/retro-sale-bot/sale.html)
+
 楽天の値下げ・新着・再入荷を検知して、Threads と GitHub Pages のサイトに楽天アフィリエイトリンク付きで自動配信します。
 流れ：取得 → 判定 → 生成 → 自動審査 → 配信 → 計測（Threadsの反応でキーワードの優先度を自動調整）
 
