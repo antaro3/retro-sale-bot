@@ -107,6 +107,12 @@ function salePage(items, drops) {
   const live = ps.filter((p) => p.start <= now), next = ps.filter((p) => p.start > now);
   const row = (p) => `<tr><td><a href="${esc(p.url)}" rel="nofollow noopener" target="_blank">${esc(p.name)}</a></td><td>${fmt(p.start)} 〜 ${fmt(p.end)}</td></tr>`;
   const d = items.filter((it) => drops[it.item_code]).sort((a, b) => drops[b.item_code].pct - drops[a.item_code].pct).slice(0, 20);
+  // セールで狙いたい高額の人気商品（1万円以上・レビュー100件以上）。観測最安値と比べて「今が安いか」を表示
+  const lowQ = db.prepare('SELECT MIN(price) lo FROM prices WHERE item_code=? AND available=1');
+  const big = items.filter((it) => it.last_price >= 10000 && (it.review_count || 0) >= 100)
+    .sort((a, b) => b.review_count - a.review_count).slice(0, 20)
+    .map((it) => ({ it, lo: lowQ.get(it.item_code)?.lo || it.last_price }));
+  const bigNote = ({ it, lo }) => `<span class="tag">高額人気</span> <span class="meta">${it.last_price <= lo ? '観測最安値' : `観測最安 ${yen(lo)}（今は${Math.round((it.last_price / lo - 1) * 100)}%高い）`}</span>`;
   const body = `<h1>楽天の次のセールはいつ？（自動更新）</h1>
 <p class="meta">楽天市場の公式キャンペーンページを数時間ごとに確認し、発表済みの日程だけを掲載しています。最終確認：${data ? fmt(data.checkedAt) : '確認中'}</p>
 <h2>開催中のセール</h2>${live.length ? `<table>${live.map(row).join('')}</table>` : '<p>現在開催中の大型セールはありません。</p>'}
@@ -117,6 +123,7 @@ function salePage(items, drops) {
 <tr><td>楽天お買い物マラソン</td><td>ほぼ毎月（スーパーセールのない月を中心に）</td></tr>
 <tr><td>楽天ブラックフライデー</td><td>11月下旬ごろ</td></tr></table>
 <p class="meta">※例年の傾向は目安です。正確な日程は各公式ページ（${SALE_PAGES.map((p) => `<a href="${esc(p.url)}" rel="nofollow noopener" target="_blank">${esc(p.name)}</a>`).join('・')}）でご確認ください。</p>
+${big.length ? `<h2>セールで狙いたい人気の高額商品（1万円以上）</h2><p class="meta">レビューの多い売れ筋のうち1万円以上の商品です。観測期間の最安値と比べて、今の価格が安いかどうかを表示しています。</p>${big.map((b) => card(b.it, './', bigNote(b))).join('\n')}` : ''}
 ${d.length ? `<h2>最近値下がりした商品</h2>${d.map((it) => card(it, './', `<span class="tag">値下がり</span> <span class="meta">${yen(drops[it.item_code].from)}→${yen(it.last_price)}（${drops[it.item_code].pct}%）</span>`)).join('\n')}` : ''}`;
   return page({ title: '楽天の次のセールはいつ？スーパーセール・お買い物マラソン・ブラックフライデーの日程（自動更新）', desc: '楽天スーパーセール・お買い物マラソン・ブラックフライデーの開催日程を公式ページから自動で確認して掲載。開催中・次回のセールと、最近値下がりした商品をまとめています。', body, path: 'sale.html' });
 }
