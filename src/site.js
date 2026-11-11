@@ -28,7 +28,7 @@ const CSS = `:root{--bg:#fbfaf7;--fg:#1d1d1b;--mut:#6b6a66;--line:#e4e1da;--acc:
 header,main,footer{max-width:760px;margin:auto;padding:16px}a{color:var(--acc)}
 h1{font-size:20px;margin:8px 0}h2{font-size:15px;margin:4px 0;line-height:1.4}.pr,.meta{font-size:12px;color:var(--mut)}
 nav a{display:inline-block;margin:0 10px 6px 0;font-size:13px}
-article{border-bottom:1px solid var(--line)}article a{display:flex;gap:12px;padding:12px 0;color:inherit;text-decoration:none}
+article{border-bottom:1px solid var(--line)}article a{display:flex;gap:12px;padding:12px 0;color:inherit;text-decoration:none}article .buy{margin:0 0 12px}article .buy a.btn{display:inline-block;padding:6px 14px;color:#fff;font-size:14px}
 img.t{width:88px;height:88px;object-fit:contain;background:#fff;border-radius:8px;flex:none}
 .price b{color:var(--acc);font-size:18px}.tag{font-size:11px;border:1px solid var(--acc);color:var(--acc);border-radius:4px;padding:1px 6px}
 .hero{display:flex;gap:16px;flex-wrap:wrap}.hero img{width:220px;max-width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border-radius:12px}
@@ -96,7 +96,7 @@ ${related.length ? `<h2>同じカテゴリの人気商品</h2>${related.map((r) 
 }
 
 const card = (it, prefix, extra = '') => `<article><a href="${prefix}items/${slug(it.item_code)}.html">${it.image ? `<img class="t" src="${esc(it.image)}" alt="" loading="lazy">` : ''}
-<div>${extra}<h2>${esc(it.name.slice(0, 80))}</h2><p class="price"><b>${yen(it.last_price)}</b></p><p class="meta">${stars(it) ? stars(it) + ' ・ ' : ''}${esc(it.shop)} ・ ${shopLabel(it.source)}</p></div></a></article>`;
+<div>${extra}<h2>${esc(it.name.slice(0, 80))}</h2><p class="price"><b>${yen(it.last_price)}</b></p><p class="meta">${stars(it) ? stars(it) + ' ・ ' : ''}${esc(it.shop)} ・ ${shopLabel(it.source)}</p></div></a>${it.affiliate_url ? `<p class="buy"><a class="btn" href="${esc(it.affiliate_url)}" rel="sponsored nofollow noopener" target="_blank">${shopLabel(it.source)}で見る（PR）</a></p>` : ''}</article>`;
 
 // 「楽天の次のセールはいつ？」ページ：公式ページから読めた日程だけを載せる（推測の日付は書かない）
 function salePage(items, drops) {
