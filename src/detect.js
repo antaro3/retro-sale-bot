@@ -67,6 +67,8 @@ export function keywordWeights() {
   return w;
 }
 
+const REWARD_CAP = 1000; // 楽天アフィリエイト：1商品1個あたりの報酬上限
+
 export function rank(candidates) {
   const w = keywordWeights();
   // 本番では「実際に投稿した商品」だけを再投稿禁止の対象にする（空運転の記録で本番の候補を潰さない）
@@ -77,7 +79,7 @@ export function rank(candidates) {
     .filter((c) => !cooled.get(c.itemCode, days(c.kind === 'pick' ? cfg.rules.pickCooldownDays : cfg.rules.cooldownDays)))
     .filter((c) => c.source === 'yahoo' || (c.affiliateRate || 0) >= cfg.rules.minAffiliateRate) // 持ち越し候補にも報酬率の条件を適用
     .filter((c) => c.kind !== 'new' || cfg.rules.postNew)
-    // 想定報酬額（価格×報酬率）が大きい商品ほど優先＝稼げるものに特化
-    .map((c) => ({ ...c, reward: Math.round(c.price * (c.affiliateRate || 0) / 100), score: c.score * (w[c.keyword] || 1) * Math.max(1, Math.sqrt(c.price * (c.affiliateRate || 0) / 100 / 50)) }))
+    // 想定報酬額（価格×報酬率）が大きい商品ほど優先＝稼げるものに特化。楽天は1商品あたり報酬1000円が上限なので、それ以上は同じ扱い
+    .map((c) => { const reward = Math.min(REWARD_CAP, Math.round(c.price * (c.affiliateRate || 0) / 100)); return { ...c, reward, score: c.score * (w[c.keyword] || 1) * Math.max(1, Math.sqrt(reward / 50)) }; })
     .sort((a, b) => b.score - a.score);
 }
