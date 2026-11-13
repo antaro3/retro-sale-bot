@@ -117,6 +117,7 @@ function salePage(items, drops) {
 <p class="meta">楽天市場の公式キャンペーンページを数時間ごとに確認し、発表済みの日程だけを掲載しています。最終確認：${data ? fmt(data.checkedAt) : '確認中'}</p>
 <h2>開催中のセール</h2>${live.length ? `<table>${live.map(row).join('')}</table>` : '<p>現在開催中の大型セールはありません。</p>'}
 <h2>発表済みの次のセール</h2>${next.length ? `<table>${next.map(row).join('')}</table>` : '<p>次回の日程はまだ公式に発表されていません。発表され次第このページに反映されます。</p>'}
+${ps.length ? '<p class="meta">※楽天のポイントアップは事前エントリーが必要なキャンペーンがあります。開始前に上の公式ページでエントリーしておくと取り逃しがありません。</p>' : ''}
 <h2>主なセールの例年の傾向</h2>
 <table><tr><th>セール</th><th>例年の時期</th></tr>
 <tr><td>楽天スーパーセール</td><td>3月・6月・9月・12月の上旬ごろ</td></tr>
