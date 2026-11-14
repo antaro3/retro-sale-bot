@@ -52,6 +52,23 @@ export async function runOnce() {
     }
   }
 
+  // 大型セールの開始前日〜直前に1回だけ「まもなく開始」の予告を投稿（エントリーの呼びかけ、セールページへ誘導）
+  {
+    const nowMs = Date.now();
+    const soon = (JSON.parse(kvGet('sale_periods') || 'null')?.periods || []).find((p) => p.start > nowMs && p.start - nowMs <= 30 * 3600e3);
+    const h = Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo', hour: 'numeric', hourCycle: 'h23' }));
+    const key = soon && `sale_preview_${soon.name}_${soon.start}`;
+    if (soon && !kvGet(key) && h >= cfg.rules.postFromHour && h < cfg.rules.postToHour) {
+      const f = (t) => new Date(t).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+      const text = `【まもなく開始】${soon.name}\n${f(soon.start)}〜${f(soon.end)}\nポイントアップはエントリーが必要なことがあるので開始前に公式ページで確認を。狙い目の人気商品と観測最安値をまとめています\n#PR #楽天 #${soon.name.replace(/^楽天/, '')} #セール`;
+      if (cfg.dryRun) log(`空運転（セール予告）\n${text}`);
+      else if (bskyOn) {
+        try { await publishBluesky(text, `${cfg.site.url}/sale.html`, { title: `${soon.name}はいつ？日程と狙い目の人気商品` }); kvSet(key, now()); log('セール予告を投稿'); }
+        catch (e) { log('セール予告投稿失敗', e.message); }
+      }
+    }
+  }
+
   // 6'. 過去14日の投稿の反応を取り込み、判定の重みに使う
   if (!cfg.dryRun) {
     const since = new Date(Date.now() - 14 * 864e5).toISOString();
